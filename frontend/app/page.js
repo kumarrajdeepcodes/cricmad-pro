@@ -6,7 +6,7 @@ import { Home, Trophy, User, Menu, Plus, X, ShoppingBag, BarChart2, Flame, Bell,
 
 // --- CONFIGURATION ---
 // REPLACE THIS WITH YOUR LAPTOP IP
-const BACKEND_URL = "http://192.168.29.252:5000"; 
+const BACKEND_URL = "https://cricmad-pro.onrender.com"; 
 const socket = io(BACKEND_URL);
 
 export default function App() {
