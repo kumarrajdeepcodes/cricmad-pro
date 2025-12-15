@@ -5,7 +5,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs"); // SECURITY: Hashes passwords
+const bcrypt = require("bcryptjs");
 
 const app = express();
 const server = http.createServer(app);
@@ -26,7 +26,6 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.sendStatus(401);
-
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
     req.user = user;
@@ -36,7 +35,9 @@ const authenticateToken = (req, res, next) => {
 
 // --- SCHEMAS ---
 const PlayerSchema = new mongoose.Schema({
-  name: String, role: String,
+  name: String, 
+  mobile: String, // NEW: For searching
+  role: String,
   isCaptain: Boolean, isVC: Boolean, isWK: Boolean,
   isOut: { type: Boolean, default: false },
   howOut: String,
@@ -50,9 +51,7 @@ const PlayerSchema = new mongoose.Schema({
 const MatchSchema = new mongoose.Schema({
   createdBy: { type: String, required: true },
   seriesName: { type: String, default: "Friendly" },
-  // Team A is ALWAYS the team that batted FIRST
   teamA: { name: String, squad: [PlayerSchema] }, 
-  // Team B is ALWAYS the team that batted SECOND
   teamB: { name: String, squad: [PlayerSchema] }, 
   matchSettings: { totalOvers: Number },
   toss: { winner: String, decision: String },
@@ -70,7 +69,6 @@ const MatchSchema = new mongoose.Schema({
   winner: String,
   resultMsg: String,
   commentary: [{ over: String, msg: String }],
-  // Deep Timeline for Undo
   timeline: [{ 
     runs: Number, isWicket: Boolean, wicketType: String, isWide: Boolean, isNoBall: Boolean,
     strikerName: String, bowlerName: String,
@@ -89,28 +87,22 @@ const UserSchema = new mongoose.Schema({
 const Match = mongoose.models.Match || mongoose.model("Match", MatchSchema);
 const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
-// --- HELPER: OWNERSHIP ---
 const checkOwnership = (match, user) => {
     if (user.role === "superadmin") return true;
     return String(match.createdBy) === String(user.id);
 };
 
-// --- AUTH ROUTES (SECURE) ---
+// --- AUTH ---
 app.post("/api/auth/signup", async (req, res) => {
   try {
     const { username, email, password } = req.body;
     if(!username || !email || !password) return res.status(400).json({ error: "Missing fields" });
-    
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ error: "Email exists" });
-
-    // SECURITY FIX: Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const role = (email === "master@cricmad.com") ? "superadmin" : "scorer";
-
+    const role = (email === "rajdeepkumar789@gmail.com") ? "superadmin" : "scorer";
     const newUser = new User({ username, email, password: hashedPassword, role });
     await newUser.save();
-    
     const token = jwt.sign({ id: newUser._id.toString(), role: newUser.role, name: newUser.username }, JWT_SECRET);
     res.json({ token, user: { id: newUser._id.toString(), name: newUser.username, role: newUser.role } });
   } catch (e) { res.status(500).json({ error: "Signup failed" }); }
@@ -121,17 +113,14 @@ app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Invalid credentials" });
-
-    // SECURITY FIX: Compare Hash
     const validPass = await bcrypt.compare(password, user.password);
     if (!validPass) return res.status(400).json({ error: "Invalid credentials" });
-
     const token = jwt.sign({ id: user._id.toString(), role: user.role, name: user.username }, JWT_SECRET);
     res.json({ token, user: { id: user._id.toString(), name: user.username, role: user.role } });
   } catch (e) { res.status(500).json({ error: "Login failed" }); }
 });
 
-// --- MATCH ROUTES ---
+// --- MATCH LISTS ---
 app.get("/api/matches/live", async (req, res) => {
   try { const matches = await Match.find({ status: { $ne: "completed" } }).sort({ createdAt: -1 }); res.json(matches); } catch(e){}
 });
@@ -146,26 +135,67 @@ app.get("/api/matches/my", authenticateToken, async (req, res) => {
   } catch(e){}
 });
 
-// START MATCH
+// --- STATS ENGINE (UPDATED FOR MOBILE SEARCH & HISTORY) ---
+app.get("/api/stats/full/:query", async (req, res) => {
+  const query = req.params.query.toLowerCase().trim();
+  const matches = await Match.find({ status: "completed" }).sort({ createdAt: -1 });
+  
+  let stats = { 
+      name: "", mobile: "", matches: 0, runs: 0, wickets: 0, highest: 0, 
+      recentScores: [], 
+      matchHistory: [] // New: Detailed list of games
+  };
+  
+  matches.forEach(m => {
+     let pData = null;
+     let teamName = "";
+     
+     // Search by Name OR Mobile Number
+     const pA = m.teamA.squad.find(p => p.name.toLowerCase() === query || p.mobile === query);
+     if(pA) { pData = pA; teamName = m.teamA.name; }
+     
+     const pB = m.teamB.squad.find(p => p.name.toLowerCase() === query || p.mobile === query);
+     if(pB) { pData = pB; teamName = m.teamB.name; }
+
+     if (pData) {
+         stats.name = pData.name; // Set correct name case
+         stats.mobile = pData.mobile || "N/A";
+         stats.matches++;
+         stats.runs += (pData.runsScored || 0);
+         stats.wickets += (pData.wicketsTaken || 0);
+         stats.recentScores.push(pData.runsScored || 0);
+         
+         // Add to History
+         stats.matchHistory.push({
+             date: new Date(m.createdAt).toLocaleDateString(),
+             series: m.seriesName,
+             match: `${m.teamA.name} vs ${m.teamB.name}`,
+             score: `${pData.runsScored}(${pData.ballsFaced})`,
+             wickets: `${pData.wicketsTaken}-${pData.runsConceded}`,
+             result: m.resultMsg || "Played"
+         });
+     }
+  });
+
+  if (stats.matches === 0) return res.status(404).json({ error: "Player not found" });
+
+  stats.recentScores = stats.recentScores.slice(0, 5); // Last 5 scores
+  res.json(stats);
+});
+
+// --- GAME LOGIC ---
 app.post("/api/match/start", authenticateToken, async (req, res) => {
   try {
     const { teamAName, teamBName, teamASquad, teamBSquad, totalOvers, seriesName, tossWinner, tossDecision, openingBowler, striker, nonStriker } = req.body;
-    
-    // Logic: Team A in DB is ALWAYS the team batting FIRST
     let battingTeam, bowlingTeam;
     if ((tossWinner === teamAName && tossDecision === "Bat") || (tossWinner === teamBName && tossDecision === "Bowl")) {
-        battingTeam = { name: teamAName, squad: teamASquad }; 
-        bowlingTeam = { name: teamBName, squad: teamBSquad };
+        battingTeam = { name: teamAName, squad: teamASquad }; bowlingTeam = { name: teamBName, squad: teamBSquad };
     } else {
-        battingTeam = { name: teamBName, squad: teamBSquad }; 
-        bowlingTeam = { name: teamAName, squad: teamASquad };
+        battingTeam = { name: teamBName, squad: teamBSquad }; bowlingTeam = { name: teamAName, squad: teamASquad };
     }
-
     const newMatch = new Match({
-      createdBy: req.user.id,
-      seriesName: seriesName || "Friendly Series",
-      teamA: battingTeam, teamB: bowlingTeam, 
-      matchSettings: { totalOvers: parseInt(totalOvers) },
+      createdBy: req.user.id, seriesName: seriesName || "Friendly",
+      teamA: battingTeam, teamB: bowlingTeam, matchSettings: { totalOvers: parseInt(totalOvers) },
       toss: { winner: tossWinner, decision: tossDecision },
       score: { runs: 0, wickets: 0, overs: 0, balls: 0 },
       currentInnings: { striker: { name: striker, runs: 0, balls: 0 }, nonStriker: { name: nonStriker, runs: 0, balls: 0 }, bowler: { name: openingBowler, runs: 0, wickets: 0, overs: 0 } },
@@ -176,51 +206,35 @@ app.post("/api/match/start", authenticateToken, async (req, res) => {
   } catch (e) { res.status(500).json({ error: "Start failed" }); }
 });
 
-// UPDATE SCORE (FIXED TEAM LOGIC & OVERS)
 app.post("/api/match/update", authenticateToken, async (req, res) => {
   try {
     const { matchId, runs, isWicket, wicketType, isWide, isNoBall } = req.body;
     const match = await Match.findById(matchId);
-    
     if (!checkOwnership(match, req.user)) return res.status(403).json({ error: "Unauthorized" });
 
-    // DYNAMIC SQUAD SELECTION (Fixes "Wickets only Team A")
     let battingSquad = match.innings === 1 ? match.teamA.squad : match.teamB.squad;
     let bowlingSquad = match.innings === 1 ? match.teamB.squad : match.teamA.squad;
-    
-    // SAVE SNAPSHOT FOR UNDO
+
     if (!match.timeline) match.timeline = [];
     match.timeline.push({
         runs, isWicket, wicketType: wicketType || "", isWide, isNoBall,
-        strikerName: match.currentInnings.striker.name, 
-        bowlerName: match.currentInnings.bowler.name,
-        prevScore: { ...match.score }, 
-        prevStrikerStats: { ...match.currentInnings.striker }, 
-        prevBowlerStats: { ...match.currentInnings.bowler }
+        strikerName: match.currentInnings.striker.name, bowlerName: match.currentInnings.bowler.name,
+        prevScore: { ...match.score }, prevStrikerStats: { ...match.currentInnings.striker }, prevBowlerStats: { ...match.currentInnings.bowler }
     });
 
     const extra = (isWide || isNoBall) ? 1 : 0;
     match.score.runs += runs + extra;
 
-    // Update Batter Stats
     if (!isWide) { 
-        match.currentInnings.striker.runs += runs; 
-        match.currentInnings.striker.balls += 1; 
+        match.currentInnings.striker.runs += runs; match.currentInnings.striker.balls += 1; 
         const sIdx = battingSquad.findIndex(p => p.name === match.currentInnings.striker.name);
-        if(sIdx !== -1) {
-            battingSquad[sIdx].runsScored = (battingSquad[sIdx].runsScored||0) + runs;
-            battingSquad[sIdx].ballsFaced = (battingSquad[sIdx].ballsFaced||0) + 1;
-        }
+        if(sIdx !== -1) { battingSquad[sIdx].runsScored = (battingSquad[sIdx].runsScored||0) + runs; battingSquad[sIdx].ballsFaced = (battingSquad[sIdx].ballsFaced||0) + 1; }
     }
-    
-    // Update Bowler Stats
     match.currentInnings.bowler.runs += runs + extra;
     if (!isWide && !isNoBall) { 
         match.currentInnings.bowler.balls += 1;
         const bIdx = bowlingSquad.findIndex(p => p.name === match.currentInnings.bowler.name);
-        if(bIdx !== -1) {
-            bowlingSquad[bIdx].runsConceded = (bowlingSquad[bIdx].runsConceded||0) + runs + extra;
-        }
+        if(bIdx !== -1) { bowlingSquad[bIdx].runsConceded = (bowlingSquad[bIdx].runsConceded||0) + runs + extra; }
     }
 
     if (isWicket) {
@@ -230,12 +244,8 @@ app.post("/api/match/update", authenticateToken, async (req, res) => {
             const bIdx = bowlingSquad.findIndex(p => p.name === match.currentInnings.bowler.name);
             if(bIdx !== -1) bowlingSquad[bIdx].wicketsTaken = (bowlingSquad[bIdx].wicketsTaken||0) + 1;
         }
-        
         const sIdx = battingSquad.findIndex(p => p.name === match.currentInnings.striker.name);
-        if (sIdx !== -1) { 
-            battingSquad[sIdx].isOut = true; 
-            battingSquad[sIdx].howOut = wicketType; 
-        }
+        if (sIdx !== -1) { battingSquad[sIdx].isOut = true; battingSquad[sIdx].howOut = wicketType; }
         
         if (match.score.wickets >= (battingSquad.length - 1)) {
             match.status = match.innings === 1 ? "innings_break" : "completed";
@@ -251,107 +261,53 @@ app.post("/api/match/update", authenticateToken, async (req, res) => {
     match.commentary.unshift({ over: `${match.score.overs}.${match.score.balls}`, msg: `${match.currentInnings.bowler.name} to ${match.currentInnings.striker.name}: ${desc}` });
 
     const swapEnds = () => { const pS = { ...match.currentInnings.striker }; const pNS = { ...match.currentInnings.nonStriker }; match.currentInnings.striker = { ...pNS }; match.currentInnings.nonStriker = { ...pS }; };
-
     if (runs % 2 !== 0 && !isWicket) swapEnds();
-
-    // Overs Calculation (Standardized)
     if (!isWide && !isNoBall) {
         match.score.balls += 1;
         if (match.score.balls === 6) {
-            match.score.overs += 1; match.score.balls = 0; 
-            match.currentInnings.bowler.overs += 1; 
-            match.lastBowler = match.currentInnings.bowler.name;
-            
+            match.score.overs += 1; match.score.balls = 0; match.currentInnings.bowler.overs += 1; match.lastBowler = match.currentInnings.bowler.name;
             const bIdx = bowlingSquad.findIndex(p => p.name === match.currentInnings.bowler.name);
             if(bIdx !== -1) bowlingSquad[bIdx].oversBowled = (bowlingSquad[bIdx].oversBowled||0) + 1;
-
             swapEnds();
-
             if (match.score.overs >= match.matchSettings.totalOvers) match.status = match.innings === 1 ? "innings_break" : "completed";
             else if (match.status !== "innings_break" && match.status !== "completed") match.status = "bowler_change";
         }
     }
+    if (match.innings === 2 && match.score.runs >= match.target) { match.status = "completed"; match.winner = match.teamB.name; match.resultMsg = `${match.teamB.name} won`; }
 
-    if (match.innings === 2 && match.score.runs >= match.target) {
-        match.status = "completed"; 
-        match.winner = match.teamB.name; // Team B is batting in 2nd innings
-        match.resultMsg = `${match.teamB.name} won`;
-    }
-
-    match.markModified('teamA.squad');
-    match.markModified('teamB.squad');
-    match.markModified('currentInnings');
-
-    await match.save(); 
-    io.to(matchId).emit("score_update", match); 
-    res.json(match);
+    match.markModified('teamA.squad'); match.markModified('teamB.squad'); match.markModified('currentInnings');
+    await match.save(); io.to(matchId).emit("score_update", match); res.json(match);
   } catch (e) { console.error(e); res.status(500).json({ error: "Error" }); }
 });
 
-// START 2ND INNINGS
 app.post("/api/match/start-second-innings", authenticateToken, async (req, res) => {
     try {
         const { matchId, striker, nonStriker, openingBowler } = req.body;
         const match = await Match.findById(matchId);
         if (!checkOwnership(match, req.user)) return res.status(403).json({ error: "Unauthorized" });
-
-        match.innings1Score = { ...match.score }; 
-        match.target = match.score.runs + 1;
-        // DO NOT SWAP TEAMS IN DB. JUST CHANGE INNINGS POINTER.
-        match.score = { runs: 0, wickets: 0, overs: 0, balls: 0 }; 
-        match.innings = 2;
+        match.innings1Score = { ...match.score }; match.target = match.score.runs + 1;
+        match.score = { runs: 0, wickets: 0, overs: 0, balls: 0 }; match.innings = 2;
         match.currentInnings = { striker: { name: striker, runs: 0, balls: 0 }, nonStriker: { name: nonStriker, runs: 0, balls: 0 }, bowler: { name: openingBowler, runs: 0, wickets: 0, overs: 0 } };
         match.status = "live"; match.timeline = []; match.lastBowler = openingBowler;
-        
         match.markModified('currentInnings');
         await match.save(); io.to(matchId).emit("score_update", match); res.json(match);
     } catch(e) { res.status(500).json({ error: "Error" }); }
 });
 
-// UNDO (FIXED to revert squad stats)
 app.post("/api/match/undo", authenticateToken, async (req, res) => {
     const { matchId } = req.body;
     const match = await Match.findById(matchId);
     if (!checkOwnership(match, req.user)) return res.status(403).json({ error: "Unauthorized" });
     if (!match.timeline || match.timeline.length === 0) return res.status(400).json({error: "Nothing to undo"});
-    
     const last = match.timeline.pop();
-    
-    match.score = last.prevScore; 
-    match.currentInnings.striker = last.prevStrikerStats; 
-    match.currentInnings.bowler = last.prevBowlerStats;
+    match.score = last.prevScore; match.currentInnings.striker = last.prevStrikerStats; match.currentInnings.bowler = last.prevBowlerStats;
     if(match.commentary.length > 0) match.commentary.shift();
-
     let battingSquad = match.innings === 1 ? match.teamA.squad : match.teamB.squad;
     let bowlingSquad = match.innings === 1 ? match.teamB.squad : match.teamA.squad;
-
-    // Revert Striker
-    if (!last.isWide) {
-        const sIdx = battingSquad.findIndex(p => p.name === last.strikerName);
-        if(sIdx !== -1) {
-            battingSquad[sIdx].runsScored -= last.runs;
-            battingSquad[sIdx].ballsFaced -= 1;
-        }
-    }
-    // Revert Bowler
-    if (!last.isWide && !last.isNoBall) {
-        const bIdx = bowlingSquad.findIndex(p => p.name === last.bowlerName);
-        if(bIdx !== -1) {
-            bowlingSquad[bIdx].runsConceded -= (last.runs + (last.isNoBall?1:0));
-        }
-    }
-    // Revert Wicket
-    if (last.isWicket) { 
-        const sIdx = battingSquad.findIndex(p => p.name === last.strikerName); 
-        if(sIdx !== -1) { battingSquad[sIdx].isOut = false; battingSquad[sIdx].howOut = ""; }
-        if (last.wicketType !== "Run Out") {
-            const bIdx = bowlingSquad.findIndex(p => p.name === last.bowlerName);
-            if(bIdx !== -1) bowlingSquad[bIdx].wicketsTaken -= 1;
-        }
-    }
-
-    match.status = "live"; 
-    match.markModified('teamA.squad'); match.markModified('teamB.squad'); match.markModified('currentInnings');
+    if (!last.isWide) { const sIdx = battingSquad.findIndex(p => p.name === last.strikerName); if(sIdx !== -1) { battingSquad[sIdx].runsScored -= last.runs; battingSquad[sIdx].ballsFaced -= 1; } }
+    if (!last.isWide && !last.isNoBall) { const bIdx = bowlingSquad.findIndex(p => p.name === last.bowlerName); if(bIdx !== -1) { bowlingSquad[bIdx].runsConceded -= (last.runs + (last.isNoBall?1:0)); } }
+    if (last.isWicket) { const sIdx = battingSquad.findIndex(p => p.name === last.strikerName); if(sIdx !== -1) { battingSquad[sIdx].isOut = false; battingSquad[sIdx].howOut = ""; } if (last.wicketType !== "Run Out") { const bIdx = bowlingSquad.findIndex(p => p.name === last.bowlerName); if(bIdx !== -1) bowlingSquad[bIdx].wicketsTaken -= 1; } }
+    match.status = "live"; match.markModified('teamA.squad'); match.markModified('teamB.squad'); match.markModified('currentInnings');
     await match.save(); io.to(matchId).emit("score_update", match); res.json(match);
 });
 
@@ -373,21 +329,6 @@ app.delete("/api/match/:id", authenticateToken, async (req, res) => {
     const match = await Match.findById(req.params.id);
     if (!checkOwnership(match, req.user)) return res.status(403).json({ error: "Unauthorized" });
     await Match.findByIdAndDelete(req.params.id); res.json({ success: true });
-});
-
-// STATS
-app.get("/api/stats/full/:player", async (req, res) => {
-  const pName = req.params.player;
-  const matches = await Match.find({ status: "completed" });
-  let stats = { matches: 0, runs: 0, wickets: 0, highest: 0, recentScores: [], availability: "Available", contact: { phone: "+919876543210", email: "player@cricmad.com" } };
-  matches.forEach(m => {
-     let pData = null;
-     const pA = m.teamA.squad.find(p => p.name.toLowerCase() === pName.toLowerCase()); if(pA) pData = pA;
-     const pB = m.teamB.squad.find(p => p.name.toLowerCase() === pName.toLowerCase()); if(pB) pData = pB;
-     if (pData) { stats.matches++; stats.runs += (pData.runsScored||0); stats.wickets += (pData.wicketsTaken||0); stats.recentScores.push(pData.runsScored||0); }
-  });
-  stats.recentScores = stats.recentScores.slice(-5).reverse();
-  res.json(stats);
 });
 
 io.on("connection", (socket) => { socket.on("join_match", (id) => { socket.join(id); }); });
