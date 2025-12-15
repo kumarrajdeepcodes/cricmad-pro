@@ -241,8 +241,8 @@ export default function App() {
            <div className="bg-gradient-to-br from-[#d32f2f] to-[#b71c1c] text-white pt-10 pb-16 px-6 rounded-b-[40px] shadow-2xl mb-10 relative overflow-hidden">
                <div className="absolute top-0 right-0 opacity-10"><Trophy size={300} /></div>
                <div className="relative z-10">
-                   <h1 className="text-4xl font-black mb-4 leading-tight">We make grassroots cricketers <span className="text-yellow-400">heroes</span>; one match at a time.</h1>
-                   <p className="text-red-100 mb-8 font-medium text-sm">Download the award winning app and start scoring for free.</p>
+                   <h1 className="text-4xl font-black mb-4 leading-tight">Where your talent <span className="text-yellow-400">heroes</span>; gets a world class platform.</h1>
+                   <p className="text-red-100 mb-8 font-medium text-sm">Download, Score, Grow and Play hard</p>
                    <div className="flex gap-3">
                        <button className="bg-black text-white px-5 py-2 rounded-lg flex items-center gap-2 text-xs font-bold shadow-lg border border-gray-800"><img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" className="h-6" alt="Play Store"/></button>
                        <button className="bg-black text-white px-5 py-2 rounded-lg flex items-center gap-2 text-xs font-bold shadow-lg border border-gray-800"><span className="text-xl"></span> App Store</button>
