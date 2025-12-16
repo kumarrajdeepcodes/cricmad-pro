@@ -14,7 +14,7 @@ import {
 const BACKEND_URL = "https://cricmad-pro.onrender.com"; 
 const socket = io(BACKEND_URL);
 
-// ... (KEEP PRODUCTS ARRAY) ...
+// --- MOCK STORE DATA ---
 const PRODUCTS = [
   { id: 1, name: "MRF Genius Grand Edition", category: "bats", price: "₹12,499", rating: 4.8, img: "🏏" },
   { id: 2, name: "SG Test Leather Ball", category: "balls", price: "₹899", rating: 4.5, img: "🔴" },
@@ -29,20 +29,25 @@ const PRODUCTS = [
 ];
 
 export default function App() {
-  // ... (STATE VARIABLES SAME AS BEFORE) ...
   const [activeTab, setActiveTab] = useState("home");
   const [showMenu, setShowMenu] = useState(false);
   const [liveMatches, setLiveMatches] = useState([]); 
   const [pastMatches, setPastMatches] = useState([]); 
   const [myMatches, setMyMatches] = useState([]);
   const [match, setMatch] = useState(null); 
+  
+  // Search & Insights State
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCategory, setSearchCategory] = useState("matches"); 
   const [insightQuery, setInsightQuery] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
   const [insightLoading, setInsightLoading] = useState(false);
+
+  // Store State
   const [storeCategory, setStoreCategory] = useState("all");
+
+  // Auth & OTP State
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authStep, setAuthStep] = useState(1); 
@@ -73,6 +78,8 @@ export default function App() {
   const [selectedStriker, setSelectedStriker] = useState("");
   const [selectedNonStriker, setSelectedNonStriker] = useState("");
   const [selectedBowler, setSelectedBowler] = useState("");
+  
+  // --- STATE FOR 2ND INNINGS ---
   const [striker2, setStriker2] = useState("");
   const [nonStriker2, setNonStriker2] = useState("");
   const [bowler2, setBowler2] = useState("");
@@ -119,7 +126,6 @@ export default function App() {
       } catch(e) { console.error("Fetch failed"); }
   };
 
-  // --- NEW AUTH LOGIC (WITH FALLBACK MESSAGE) ---
   const handleSendOtp = async () => {
       if(!contactValue) return alert("Enter valid contact");
       try {
@@ -128,7 +134,6 @@ export default function App() {
           if(res.data.type === 'mobile') {
               alert("📲 DEMO MODE: Use OTP 123456 to login!");
           } else if(res.data.type === 'email_failed') {
-              // THIS IS THE NEW FALLBACK MESSAGE YOU REQUESTED
               alert("⚠️ Unable to send OTP via email (Server Restriction).\n\n✅ You can use 123456 as OTP to login.");
           } else {
               alert("📧 Email Sent! Check your inbox.");
@@ -256,9 +261,6 @@ export default function App() {
       return PRODUCTS.filter(p => p.category === storeCategory);
   };
 
-  const liveGroups = liveMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
-  const pastGroups = pastMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
-
   const getFilteredMatches = () => {
       const allMatches = [...liveMatches, ...pastMatches];
       if (!searchQuery) return [];
@@ -354,7 +356,7 @@ export default function App() {
          </div>
       </div>
 
-      {/* AUTH MODAL (OTP UPDATE + RESEND) */}
+      {/* AUTH MODAL */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative">
@@ -363,7 +365,6 @@ export default function App() {
                 <p className="text-xs text-gray-500 mb-6">{isMasterLogin ? "Super Admin Access" : (authStep === 2 ? `Sent to ${contactValue}` : "Login with OTP")}</p>
 
                 {isMasterLogin ? (
-                    // --- MASTER PASSWORD LOGIN ---
                     <div className="space-y-3">
                         <input className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200" placeholder="Master Email" value={contactValue} onChange={e => setContactValue(e.target.value)} />
                         <input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200" placeholder="Password" value={masterPassword} onChange={e => setMasterPassword(e.target.value)} />
@@ -371,7 +372,6 @@ export default function App() {
                         <button onClick={() => setIsMasterLogin(false)} className="text-xs text-gray-500 underline">Back to User Login</button>
                     </div>
                 ) : (
-                    // --- OTP LOGIN FLOW ---
                     <div className="space-y-3">
                         {authStep === 1 && (
                             <>
@@ -389,8 +389,6 @@ export default function App() {
                                 <input className="w-full p-4 bg-gray-50 rounded-xl text-black border border-gray-300 text-center font-mono text-2xl tracking-widest focus:border-red-500 outline-none mb-2" placeholder="XXXXXX" value={otpValue} onChange={e => setOtpValue(e.target.value)} maxLength={6} />
                                 {otpError && <p className="text-xs text-red-500 font-bold mb-2">{otpError}</p>}
                                 <button onClick={handleVerifyOtp} className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-bold shadow-lg transition">Verify & Login</button>
-                                
-                                {/* RESEND OPTION */}
                                 <button onClick={handleSendOtp} className="text-xs text-gray-500 hover:text-black font-bold mt-4 flex items-center justify-center gap-1 w-full"><Repeat size={12}/> Didn't receive code? Resend</button>
                             </>
                         )}
@@ -408,7 +406,6 @@ export default function App() {
         </div>
       )}
 
-      {/* GLOBAL SEARCH OVERLAY */}
       {showSearch && (
         <div className="fixed inset-0 bg-white z-50 p-4 animate-in fade-in slide-in-from-top-10 duration-200">
             <div className="flex items-center gap-3 mb-6">
@@ -458,172 +455,30 @@ export default function App() {
       {/* --- STORE TAB (NEW FEATURE) --- */}
       {activeTab === 'store' && (
         <div className="pt-20 px-4 pb-20 bg-gray-50 min-h-screen">
-            {/* Store Header */}
-            <div className="flex items-center justify-between mb-6">
-                <button onClick={() => setActiveTab('home')} className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowLeft size={20}/></button>
-                <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">CricMad Store</h1>
-                <div className="relative">
-                    <ShoppingBag className="text-gray-900"/>
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">2</span>
-                </div>
-            </div>
-
-            {/* Promo Banner */}
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white mb-8 shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 opacity-20"><Tag size={120} /></div>
-                <h2 className="text-3xl font-black mb-1 relative z-10">Season Sale</h2>
-                <p className="text-yellow-100 font-bold mb-4 relative z-10">Flat 50% Off on Kits</p>
-                <button className="bg-white text-orange-600 px-4 py-2 rounded-lg text-xs font-bold shadow-sm relative z-10">Shop Now</button>
-            </div>
-
-            {/* Category Filter */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-                {['All', 'Bats', 'Balls', 'Jerseys', 'Football', 'Kits'].map(cat => (
-                    <button key={cat} onClick={() => setStoreCategory(cat.toLowerCase())} className={`px-5 py-2 rounded-full text-xs font-bold border whitespace-nowrap transition ${storeCategory === cat.toLowerCase() ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>
-                        {cat}
-                    </button>
-                ))}
-            </div>
-
-            {/* Product Grid */}
-            <div className="grid grid-cols-2 gap-4">
-                {getStoreProducts().map(item => (
-                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-lg transition">
-                        <div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-5xl">{item.img}</div>
-                        <div className="flex items-center gap-1 mb-1">
-                            <Star size={12} className="text-yellow-400 fill-yellow-400"/>
-                            <span className="text-[10px] font-bold text-gray-500">{item.rating}</span>
-                        </div>
-                        <h3 className="font-bold text-sm text-gray-900 leading-tight mb-2 h-10 overflow-hidden">{item.name}</h3>
-                        <div className="flex items-center justify-between">
-                            <span className="font-black text-lg text-gray-900">{item.price}</span>
-                            <button onClick={() => alert('Added to cart!')} className="bg-black text-white p-2 rounded-lg hover:bg-gray-800"><ShoppingCart size={16}/></button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <div className="flex items-center justify-between mb-6"><button onClick={() => setActiveTab('home')} className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowLeft size={20}/></button><h1 className="text-xl font-black text-gray-900 flex items-center gap-2">CricMad Store</h1><div className="relative"><ShoppingBag className="text-gray-900"/><span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">2</span></div></div>
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white mb-8 shadow-lg relative overflow-hidden"><div className="absolute top-0 right-0 opacity-20"><Tag size={120} /></div><h2 className="text-3xl font-black mb-1 relative z-10">Season Sale</h2><p className="text-yellow-100 font-bold mb-4 relative z-10">Flat 50% Off on Kits</p><button className="bg-white text-orange-600 px-4 py-2 rounded-lg text-xs font-bold shadow-sm relative z-10">Shop Now</button></div>
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">{['All', 'Bats', 'Balls', 'Jerseys', 'Football', 'Kits'].map(cat => (<button key={cat} onClick={() => setStoreCategory(cat.toLowerCase())} className={`px-5 py-2 rounded-full text-xs font-bold border whitespace-nowrap transition ${storeCategory === cat.toLowerCase() ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>{cat}</button>))}</div>
+            <div className="grid grid-cols-2 gap-4">{getStoreProducts().map(item => (<div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-lg transition"><div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-5xl">{item.img}</div><div className="flex items-center gap-1 mb-1"><Star size={12} className="text-yellow-400 fill-yellow-400"/><span className="text-[10px] font-bold text-gray-500">{item.rating}</span></div><h3 className="font-bold text-sm text-gray-900 leading-tight mb-2 h-10 overflow-hidden">{item.name}</h3><div className="flex items-center justify-between"><span className="font-black text-lg text-gray-900">{item.price}</span><button onClick={() => alert('Added to cart!')} className="bg-black text-white p-2 rounded-lg hover:bg-gray-800"><ShoppingCart size={16}/></button></div></div>))}</div>
         </div>
       )}
 
       {/* --- INSIGHTS TAB (NEW FEATURE) --- */}
       {activeTab === 'insights' && (
         <div className="pt-20 px-4 pb-20 bg-gray-50 min-h-screen">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-6">
-                <button onClick={() => setActiveTab('home')} className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowLeft size={20}/></button>
-                <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2"><BarChart2 className="text-purple-600"/> CricInsights</h1>
-            </div>
-
-            {/* Search Box */}
-            <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-200 flex gap-2 mb-8">
-                <input className="flex-1 p-3 outline-none text-gray-900 font-medium" placeholder="Search Player Name (e.g. Virat)" value={insightQuery} onChange={e => setInsightQuery(e.target.value)}/>
-                <button onClick={() => fetchPlayerStats(insightQuery)} className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-700 transition shadow-lg">{insightLoading ? <RefreshCw className="animate-spin"/> : <Search />}</button>
-            </div>
-
-            {/* Results Area */}
-            {playerStats ? (
-                <div className="animate-in slide-in-from-bottom-5 fade-in duration-500">
-                    {/* Profile Card */}
-                    <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 mb-6 text-center relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-purple-500 to-indigo-600 opacity-20"></div>
-                        <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center text-4xl shadow-md relative z-10 border-4 border-purple-50">👤</div>
-                        <h2 className="text-2xl font-black text-gray-900 mb-1">{playerStats.name}</h2>
-                        <p className="text-sm text-green-600 font-bold bg-green-50 inline-block px-3 py-1 rounded-full mb-6">Available to Play</p>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <p className="text-xs text-gray-400 font-bold uppercase mb-1">Matches</p>
-                                <p className="text-3xl font-black text-gray-900">{playerStats.matches}</p>
-                            </div>
-                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <p className="text-xs text-gray-400 font-bold uppercase mb-1">High Score</p>
-                                <p className="text-3xl font-black text-yellow-600">{Math.max(...(playerStats.recentScores || [0]))}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
-                            <div className="flex items-center gap-2 mb-2 text-blue-600"><Target size={18}/><span className="font-bold text-sm">Total Runs</span></div>
-                            <p className="text-3xl font-black text-gray-900">{playerStats.runs}</p>
-                        </div>
-                        <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
-                            <div className="flex items-center gap-2 mb-2 text-red-600"><Zap size={18}/><span className="font-bold text-sm">Wickets</span></div>
-                            <p className="text-3xl font-black text-gray-900">{playerStats.wickets}</p>
-                        </div>
-                    </div>
-
-                    {/* Recent Form Graph */}
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                        <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2"><TrendingUp className="text-green-600"/> Recent Form</h3>
-                        <div className="flex items-end justify-between h-32 gap-2">
-                            {playerStats.recentScores && playerStats.recentScores.length > 0 ? playerStats.recentScores.map((score, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                                    <span className="text-xs font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">{score}</span>
-                                    <div className="w-full bg-purple-200 rounded-t-lg hover:bg-purple-500 transition-colors relative" style={{ height: `${Math.max(score, 10)}%` }}></div>
-                                    <span className="text-[10px] text-gray-400 font-bold">M{i+1}</span>
-                                </div>
-                            )) : <div className="text-gray-400 text-sm w-full text-center">No recent data available.</div>}
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="text-center mt-20 opacity-50">
-                    <BarChart2 size={60} className="mx-auto mb-4 text-gray-300"/>
-                    <p className="text-gray-400 font-bold">Search a player to see analytics</p>
-                </div>
-            )}
+            <div className="flex items-center gap-4 mb-6"><button onClick={() => setActiveTab('home')} className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowLeft size={20}/></button><h1 className="text-2xl font-black text-gray-900 flex items-center gap-2"><BarChart2 className="text-purple-600"/> CricInsights</h1></div>
+            <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-200 flex gap-2 mb-8"><input className="flex-1 p-3 outline-none text-gray-900 font-medium" placeholder="Search Player Name (e.g. Virat)" value={insightQuery} onChange={e => setInsightQuery(e.target.value)}/><button onClick={() => fetchPlayerStats(insightQuery)} className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-700 transition shadow-lg">{insightLoading ? <RefreshCw className="animate-spin"/> : <Search />}</button></div>
+            {playerStats ? (<div className="animate-in slide-in-from-bottom-5 fade-in duration-500"><div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 mb-6 text-center relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-purple-500 to-indigo-600 opacity-20"></div><div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center text-4xl shadow-md relative z-10 border-4 border-purple-50">👤</div><h2 className="text-2xl font-black text-gray-900 mb-1">{playerStats.name}</h2><p className="text-sm text-green-600 font-bold bg-green-50 inline-block px-3 py-1 rounded-full mb-6">Available to Play</p><div className="grid grid-cols-2 gap-4"><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase mb-1">Matches</p><p className="text-3xl font-black text-gray-900">{playerStats.matches}</p></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase mb-1">High Score</p><p className="text-3xl font-black text-yellow-600">{Math.max(...(playerStats.recentScores || [0]))}</p></div></div></div><div className="grid grid-cols-2 gap-4 mb-6"><div className="bg-blue-50 p-5 rounded-2xl border border-blue-100"><div className="flex items-center gap-2 mb-2 text-blue-600"><Target size={18}/><span className="font-bold text-sm">Total Runs</span></div><p className="text-3xl font-black text-gray-900">{playerStats.runs}</p></div><div className="bg-red-50 p-5 rounded-2xl border border-red-100"><div className="flex items-center gap-2 mb-2 text-red-600"><Zap size={18}/><span className="font-bold text-sm">Wickets</span></div><p className="text-3xl font-black text-gray-900">{playerStats.wickets}</p></div></div><div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"><h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2"><TrendingUp className="text-green-600"/> Recent Form</h3><div className="flex items-end justify-between h-32 gap-2">{playerStats.recentScores && playerStats.recentScores.length > 0 ? playerStats.recentScores.map((score, i) => (<div key={i} className="flex-1 flex flex-col items-center gap-2 group"><span className="text-xs font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">{score}</span><div className="w-full bg-purple-200 rounded-t-lg hover:bg-purple-500 transition-colors relative" style={{ height: `${Math.max(score, 10)}%` }}></div><span className="text-[10px] text-gray-400 font-bold">M{i+1}</span></div>)) : <div className="text-gray-400 text-sm w-full text-center">No recent data available.</div>}</div></div></div>) : (<div className="text-center mt-20 opacity-50"><BarChart2 size={60} className="mx-auto mb-4 text-gray-300"/><p className="text-gray-400 font-bold">Search a player to see analytics</p></div>)}
         </div>
       )}
 
       {/* --- CONTACT SUPPORT TAB (NEW & ATTRACTIVE) --- */}
       {activeTab === 'contact' && (
         <div className="pt-20 px-4 pb-20">
-            {/* Header Gradient */}
-            <div className="bg-gradient-to-r from-red-600 to-rose-800 rounded-3xl p-8 text-white mb-8 text-center shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 opacity-10"><Phone size={200} /></div>
-                <button onClick={() => setActiveTab('home')} className="absolute top-4 left-4 text-white/70 hover:text-white"><ArrowLeft /></button>
-                <h1 className="text-3xl font-black mb-2 relative z-10">Contact Us</h1>
-                <p className="text-red-100 relative z-10">Need help? Tell us more & we'll assist you.</p>
-            </div>
-
+            <div className="bg-gradient-to-r from-red-600 to-rose-800 rounded-3xl p-8 text-white mb-8 text-center shadow-xl relative overflow-hidden"><div className="absolute top-0 right-0 opacity-10"><Phone size={200} /></div><button onClick={() => setActiveTab('home')} className="absolute top-4 left-4 text-white/70 hover:text-white"><ArrowLeft /></button><h1 className="text-3xl font-black mb-2 relative z-10">Contact Us</h1><p className="text-red-100 relative z-10">Need help? Tell us more & we'll assist you.</p></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Card 1: Association */}
-                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="bg-blue-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-blue-600"><Handshake size={28}/></div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">Association</h3>
-                    <p className="text-sm text-gray-500 mb-4">For partnering with us</p>
-                    <div className="space-y-2 mb-6 text-sm text-gray-600">
-                        <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> partners@cricmad.in</p>
-                        <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 9876543210</p>
-                    </div>
-                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold shadow-lg shadow-blue-200 transition active:scale-95">Book a Demo</button>
-                </div>
-
-                {/* Card 2: Support */}
-                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="bg-green-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-green-600"><LifeBuoy size={28}/></div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">Support</h3>
-                    <p className="text-sm text-gray-500 mb-4">For player queries</p>
-                    <div className="space-y-2 mb-6 text-sm text-gray-600">
-                        <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> support@cricmad.in</p>
-                        <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 8141665555</p>
-                    </div>
-                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg shadow-green-200 transition active:scale-95 flex items-center justify-center gap-2"><MessageCircle size={18}/> Whatsapp</button>
-                </div>
-
-                {/* Card 3: Sales */}
-                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="bg-purple-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-purple-600"><TrendingUp size={28}/></div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">Sales</h3>
-                    <p className="text-sm text-gray-500 mb-4">For growing with us</p>
-                    <div className="space-y-2 mb-6 text-sm text-gray-600">
-                        <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> sales@cricmad.in</p>
-                        <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 8141665533</p>
-                    </div>
-                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold shadow-lg shadow-purple-200 transition active:scale-95 flex items-center justify-center gap-2"><MessageCircle size={18}/> Whatsapp</button>
-                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"><div className="bg-blue-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-blue-600"><Handshake size={28}/></div><h3 className="text-xl font-bold text-gray-900 mb-1">Association</h3><p className="text-sm text-gray-500 mb-4">For partnering with us</p><div className="space-y-2 mb-6 text-sm text-gray-600"><p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> partners@cricmad.in</p><p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 9876543210</p></div><button className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold shadow-lg shadow-blue-200 transition active:scale-95">Book a Demo</button></div>
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"><div className="bg-green-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-green-600"><LifeBuoy size={28}/></div><h3 className="text-xl font-bold text-gray-900 mb-1">Support</h3><p className="text-sm text-gray-500 mb-4">For player queries</p><div className="space-y-2 mb-6 text-sm text-gray-600"><p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> support@cricmad.in</p><p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 8141665555</p></div><button className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg shadow-green-200 transition active:scale-95 flex items-center justify-center gap-2"><MessageCircle size={18}/> Whatsapp</button></div>
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"><div className="bg-purple-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-purple-600"><TrendingUp size={28}/></div><h3 className="text-xl font-bold text-gray-900 mb-1">Sales</h3><p className="text-sm text-gray-500 mb-4">For growing with us</p><div className="space-y-2 mb-6 text-sm text-gray-600"><p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> sales@cricmad.in</p><p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 8141665533</p></div><button className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold shadow-lg shadow-purple-200 transition active:scale-95 flex items-center justify-center gap-2"><MessageCircle size={18}/> Whatsapp</button></div>
             </div>
         </div>
       )}
@@ -764,12 +619,54 @@ export default function App() {
            <button onClick={() => { setMatch(null); setActiveTab("home"); fetchAllMatches(); }} className="flex items-center gap-2 text-gray-400 mb-4 hover:text-white font-bold"><ArrowLeft size={16} /> Exit Match</button>
            <div className="bg-[#1F2937] p-6 rounded-3xl text-center mb-4 border border-gray-700 shadow-xl relative overflow-hidden"><div className="relative z-10"><p className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-widest">{match.teamA?.name} vs {match.teamB?.name}</p><h1 className="text-6xl font-black text-white mb-2 tracking-tighter">{match.score?.runs}/{match.score?.wickets}</h1><p className="text-gray-400 font-mono text-sm">Overs: {match.score?.overs}.{match.score?.balls}</p>{match.innings === 2 && <p className="text-green-400 text-sm font-bold mt-2 uppercase">Target: {match.target}</p>}</div></div>
            {match.currentInnings ? <div className="bg-[#1F2937] p-4 rounded-2xl mb-4 border border-gray-700"><div className="flex justify-between items-center mb-3 p-3 bg-gray-800 rounded-xl border-l-4 border-red-500"><div><p className="font-bold text-white text-xl">{match.currentInnings.striker?.name}</p><p className="text-[10px] text-gray-400 uppercase">Striker</p></div><div className="text-right"><span className="font-bold text-2xl text-white">{match.currentInnings.striker?.runs}</span></div></div><div className="flex justify-between items-center mb-3 p-3 opacity-60"><div><p className="font-bold text-gray-200 text-xl">{match.currentInnings.nonStriker?.name}</p><p className="text-[10px] text-gray-400 uppercase">Non-Striker</p></div><div className="text-right"><span className="font-bold text-2xl text-gray-200">{match.currentInnings.nonStriker?.runs}</span></div></div><div className="border-t border-gray-700 pt-3 flex justify-between items-center px-2"><div><p className="font-bold text-blue-400 text-lg">{match.currentInnings.bowler?.name} {canScore && <button onClick={() => setShowBowlerChange(true)}><RefreshCw size={14} className="ml-2 text-yellow-500"/></button>}</p><p className="text-[10px] text-gray-500 uppercase">Bowler</p></div><div className="text-right"><span className="font-mono text-yellow-500 font-bold text-xl">{match.currentInnings.bowler?.wickets}-{match.currentInnings.bowler?.runs}</span></div></div></div> : <div className="text-center text-white py-10">Loading Data...</div>}
+           
            {/* MODALS */}
            {canScore && showWicketType && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-red-500 text-center"><h3 className="text-xl font-bold text-white mb-4">How Wicket Fell?</h3><div className="grid grid-cols-2 gap-3">{["Bowled", "Catch", "LBW", "Run Out", "Stumped", "Hit Wicket"].map(type => (<button key={type} onClick={() => initiateScoreUpdate(0, true, false, type)} className="bg-gray-800 hover:bg-red-600 p-3 rounded-xl font-bold text-white transition border border-gray-600">{type}</button>))}</div><button onClick={() => setShowWicketType(false)} className="mt-4 text-gray-400 underline text-sm">Cancel</button></div></div>)}
            {canScore && showBowlerChange && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-blue-500"><h3 className="font-bold text-xl text-blue-400 mb-4 text-center">Change Bowler</h3><div className="grid grid-cols-2 gap-2">{match.teamB?.squad.filter(p => p.name !== match.currentInnings.bowler?.name).map(p => <button key={p.name} onClick={() => changeBowler(p.name)} className="bg-blue-600 p-3 rounded-xl font-bold text-white">{p.name}</button>)}</div><button onClick={() => setShowBowlerChange(false)} className="mt-4 text-gray-400 text-sm block mx-auto">Cancel</button></div></div>)}
            {canScore && showCommModal && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-gray-600"><h3 className="text-xl font-bold text-white mb-4">Details</h3><select className="w-full p-3 bg-black rounded text-white mb-3 border border-gray-700" value={shotType} onChange={e => setShotType(e.target.value)}><option value="">Select Shot (Optional)</option> {["Drive", "Pull", "Cut", "Flick", "Sweep", "Lofted", "Edge"].map(s => <option key={s} value={s}>{s}</option>)}</select><input className="w-full p-3 bg-black rounded text-white mb-4 border border-gray-700" placeholder="Add Commentary (Optional)" value={commText} onChange={e => setCommText(e.target.value)} /><button onClick={confirmScoreUpdate} className="w-full bg-green-600 p-3 rounded font-bold">Confirm</button></div></div>)}
 
-           {canScore && match.status !== "completed" && !showWicketType && !showBowlerChange && !showCommModal ? (<>{match.status === "innings_break" ? (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-8 rounded-3xl border border-yellow-500 text-center"><h2 className="text-3xl font-black text-white uppercase italic mb-4">Innings Break</h2><div className="bg-gray-800 p-4 rounded-xl mb-4"><p className="text-xs font-bold uppercase text-gray-400">Target for {match.teamB?.name}</p><h1 className="text-5xl font-black text-white">{match.score?.runs + 1}</h1></div><button onClick={startSecondInnings} className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-xl">Start 2nd Innings</button></div></div>) : match.status === "bowler_change" ? (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-blue-500 animate-pulse"><h3 className="font-bold text-xl text-blue-400 mb-4 text-center">Over Complete!</h3><div className="grid grid-cols-2 gap-2">{match.teamB?.squad.filter(p => p.name !== match.lastBowler).map(p => <button key={p.name} onClick={() => changeBowler(p.name)} className="bg-blue-600 p-3 rounded-xl font-bold text-white">{p.name}</button>)}</div></div></div>) : match.currentInnings.striker?.name === "New Batter" || match.currentInnings.striker?.name === "ALL OUT" ? (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-red-500"><h3 className="font-bold text-xl text-red-500 mb-2 text-center">WICKET! ☝️</h3><div className="flex flex-col gap-2 max-h-60 overflow-y-auto">{match.teamA?.squad.filter(p => !p.isOut && p.name !== match.currentInnings.nonStriker.name && p.name !== "New Batter").map(p => (<button key={p.name} onClick={() => changeBatter(p.name)} className="bg-gray-800 hover:bg-red-600 p-4 rounded-xl font-bold text-white transition border border-gray-700 flex justify-between"><span>{p.name}</span><span className="text-[10px] text-gray-500">{p.role}</span></button>))}</div></div></div>) : (<div className="grid grid-cols-4 gap-3 mt-4"><button onClick={undoLastBall} className="col-span-4 bg-gray-700 text-gray-300 py-2 rounded-lg font-bold flex items-center justify-center gap-2 mb-2 hover:bg-gray-600"><Undo2 size={16}/> Undo Last Ball</button>{[0,1,2,3].map(r => <button key={r} onClick={() => initiateScoreUpdate(r)} className="bg-gray-800 text-white h-16 rounded-2xl text-xl font-bold border border-gray-700 shadow-lg active:scale-95 transition">{r}</button>)}<button onClick={() => initiateScoreUpdate(4)} className="bg-green-600 text-white h-16 rounded-2xl font-bold text-xl shadow-lg active:scale-95 transition">4</button><button onClick={() => initiateScoreUpdate(6)} className="bg-green-600 text-white h-16 rounded-2xl font-bold text-xl shadow-lg active:scale-95 transition">6</button><button onClick={() => initiateScoreUpdate(1, false, true)} className="bg-orange-500 text-white h-16 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition">WD</button><button onClick={() => setShowWicketType(true)} className="bg-red-600 text-white h-16 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition">OUT</button></div>)}</>) : !canScore && match.status !== "completed" ? (<div className="text-center p-4 bg-gray-900 rounded-xl mt-4 border border-gray-700 flex items-center justify-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> <span className="text-gray-400 text-sm">Read Only Mode</span></div>) : null}
+           {/* --- UPDATED INNINGS BREAK MODAL --- */}
+           {canScore && match.status !== "completed" && !showWicketType && !showBowlerChange && !showCommModal ? (<>{match.status === "innings_break" ? (
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+                    <div className="bg-[#1F2937] w-full max-w-sm p-8 rounded-3xl border border-yellow-500 text-center">
+                        <h2 className="text-3xl font-black text-white uppercase italic mb-4">Innings Break</h2>
+                        
+                        {/* Target Display */}
+                        <div className="bg-gray-800 p-4 rounded-xl mb-4">
+                            <p className="text-xs font-bold uppercase text-gray-400">Target for {match.teamB?.name}</p>
+                            <h1 className="text-5xl font-black text-white">{match.score?.runs + 1}</h1>
+                        </div>
+
+                        {/* SELECTORS FOR 2ND INNINGS */}
+                        <div className="space-y-3 mb-4 text-left">
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold uppercase block mb-1">Striker ({match.teamB?.name})</label>
+                                <select className="w-full p-3 bg-black rounded-xl text-white border border-gray-700" onChange={e => setStriker2(e.target.value)}>
+                                    <option value="">Select Striker</option>
+                                    {match.teamB?.squad.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold uppercase block mb-1">Non-Striker ({match.teamB?.name})</label>
+                                <select className="w-full p-3 bg-black rounded-xl text-white border border-gray-700" onChange={e => setNonStriker2(e.target.value)}>
+                                    <option value="">Select Non-Striker</option>
+                                    {match.teamB?.squad.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold uppercase block mb-1">Opening Bowler ({match.teamA?.name})</label>
+                                <select className="w-full p-3 bg-black rounded-xl text-white border border-gray-700" onChange={e => setBowler2(e.target.value)}>
+                                    <option value="">Select Bowler</option>
+                                    {match.teamA?.squad.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <button onClick={startSecondInnings} className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-xl">Start 2nd Innings</button>
+                    </div>
+                </div>
+           ) : match.status === "bowler_change" ? (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-blue-500 animate-pulse"><h3 className="font-bold text-xl text-blue-400 mb-4 text-center">Over Complete!</h3><div className="grid grid-cols-2 gap-2">{match.teamB?.squad.filter(p => p.name !== match.lastBowler).map(p => <button key={p.name} onClick={() => changeBowler(p.name)} className="bg-blue-600 p-3 rounded-xl font-bold text-white">{p.name}</button>)}</div></div></div>) : match.currentInnings.striker?.name === "New Batter" || match.currentInnings.striker?.name === "ALL OUT" ? (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-red-500"><h3 className="font-bold text-xl text-red-500 mb-2 text-center">WICKET! ☝️</h3><div className="flex flex-col gap-2 max-h-60 overflow-y-auto">{match.teamA?.squad.filter(p => !p.isOut && p.name !== match.currentInnings.nonStriker.name && p.name !== "New Batter").map(p => (<button key={p.name} onClick={() => changeBatter(p.name)} className="bg-gray-800 hover:bg-red-600 p-4 rounded-xl font-bold text-white transition border border-gray-700 flex justify-between"><span>{p.name}</span><span className="text-[10px] text-gray-500">{p.role}</span></button>))}</div></div></div>) : (<div className="grid grid-cols-4 gap-3 mt-4"><button onClick={undoLastBall} className="col-span-4 bg-gray-700 text-gray-300 py-2 rounded-lg font-bold flex items-center justify-center gap-2 mb-2 hover:bg-gray-600"><Undo2 size={16}/> Undo Last Ball</button>{[0,1,2,3].map(r => <button key={r} onClick={() => initiateScoreUpdate(r)} className="bg-gray-800 text-white h-16 rounded-2xl text-xl font-bold border border-gray-700 shadow-lg active:scale-95 transition">{r}</button>)}<button onClick={() => initiateScoreUpdate(4)} className="bg-green-600 text-white h-16 rounded-2xl font-bold text-xl shadow-lg active:scale-95 transition">4</button><button onClick={() => initiateScoreUpdate(6)} className="bg-green-600 text-white h-16 rounded-2xl font-bold text-xl shadow-lg active:scale-95 transition">6</button><button onClick={() => initiateScoreUpdate(1, false, true)} className="bg-orange-500 text-white h-16 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition">WD</button><button onClick={() => setShowWicketType(true)} className="bg-red-600 text-white h-16 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition">OUT</button></div>)}</>) : !canScore && match.status !== "completed" ? (<div className="text-center p-4 bg-gray-900 rounded-xl mt-4 border border-gray-700 flex items-center justify-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> <span className="text-gray-400 text-sm">Read Only Mode</span></div>) : null}
+           
            {match.status === "completed" && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] p-8 rounded-3xl border border-yellow-500 text-center w-full max-w-sm"><Trophy size={80} className="mx-auto text-yellow-500 mb-4" /><h2 className="text-3xl font-black text-white uppercase italic mb-2">{match.winner} WON!</h2><p className="text-gray-400 mb-4">{match.resultMsg}</p><button onClick={() => { setActiveTab("home"); fetchAllMatches(); }} className="mt-2 bg-yellow-500 text-black font-bold py-3 px-6 rounded-xl">Back to Home</button></div></div>)}
         </div>
       ) : activeTab === 'live' && <div className="pt-24 text-center text-gray-500">Select a match from Home.</div>}
