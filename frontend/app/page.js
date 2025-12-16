@@ -6,7 +6,7 @@ import {
   Home, Trophy, User, Menu, Plus, X, ShoppingBag, BarChart2, Flame, Bell, Activity, 
   Settings, Lock, Unlock, ArrowLeft, Clock, MessageSquare, Undo2, Search, Phone, 
   Mail, MessageCircle, RefreshCw, ChevronRight, Trash2, Key, Eye, Edit3, Smartphone, 
-  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send 
+  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter 
 } from 'lucide-react';
 
 // REPLACE WITH YOUR BACKEND URL
@@ -21,6 +21,12 @@ export default function App() {
   const [myMatches, setMyMatches] = useState([]);
   const [match, setMatch] = useState(null); 
   
+  // Search State
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCategory, setSearchCategory] = useState("matches"); // matches, tournament, player
+  const [playerStats, setPlayerStats] = useState(null);
+
   // Auth
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -54,8 +60,6 @@ export default function App() {
   
   const [detailMatch, setDetailMatch] = useState(null);
   const [detailViewMode, setDetailViewMode] = useState("summary");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [playerStats, setPlayerStats] = useState(null);
   
   // Scoring & Commentary State
   const [showWicketType, setShowWicketType] = useState(false);
@@ -115,8 +119,8 @@ export default function App() {
   };
 
   const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); setUser(null); setActiveTab("home"); };
-  const joinMatch = (matchData) => { setMatch(matchData); socket.emit("join_match", matchData._id); setActiveTab("live"); };
-  const openDetailView = (m) => { setDetailMatch(m); setDetailViewMode("summary"); setActiveTab("detail"); };
+  const joinMatch = (matchData) => { setMatch(matchData); setShowSearch(false); socket.emit("join_match", matchData._id); setActiveTab("live"); };
+  const openDetailView = (m) => { setDetailMatch(m); setShowSearch(false); setDetailViewMode("summary"); setActiveTab("detail"); };
 
   const addPlayer = (team) => {
     if (!tempPlayerName) return;
@@ -183,9 +187,28 @@ export default function App() {
   const changeBowler = async (name) => { await securePost(`${BACKEND_URL}/api/match/new-bowler`, { matchId: match._id, bowlerName: name }); setShowBowlerChange(false); };
   const changeBatter = async (name) => { await securePost(`${BACKEND_URL}/api/match/new-batter`, { matchId: match._id, batterName: name }); };
 
-  const fetchStats = async () => {
+  const fetchPlayerStats = async () => {
       if(!searchQuery) return;
       try { const res = await axios.get(`${BACKEND_URL}/api/stats/full/${searchQuery}`); setPlayerStats(res.data); } catch(e) { alert("Player not found"); }
+  };
+
+  const liveGroups = liveMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
+  const pastGroups = pastMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
+
+  // FILTER LOGIC FOR SEARCH
+  const getFilteredMatches = () => {
+      const allMatches = [...liveMatches, ...pastMatches];
+      if (!searchQuery) return [];
+      
+      return allMatches.filter(m => {
+          if (searchCategory === "tournament") {
+              return m.seriesName?.toLowerCase().includes(searchQuery.toLowerCase());
+          } else if (searchCategory === "matches") {
+              return m.teamA?.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                     m.teamB?.name.toLowerCase().includes(searchQuery.toLowerCase());
+          }
+          return false;
+      });
   };
 
   // HELPER FOR COMPACT CARDS
@@ -267,8 +290,59 @@ export default function App() {
       {/* HEADER */}
       <div className="fixed top-0 w-full bg-white shadow-sm p-4 z-40 flex justify-between items-center border-b border-gray-200">
          <div className="flex items-center gap-2"><div className="bg-red-600 w-8 h-8 rounded-lg flex items-center justify-center shadow-lg"><Flame size={20} color="white"/></div><h1 className="font-black text-xl text-gray-800 tracking-tight">Cric<span className="text-red-600">Mad</span></h1></div>
-         {user ? <div className="flex items-center gap-3"><span className="text-xs text-gray-600 font-bold bg-gray-100 px-3 py-1 rounded-full">{user.name}</span><button onClick={logout} className="text-gray-400 hover:text-red-600"><Lock size={18} /></button></div> : <button onClick={() => setShowAuthModal(true)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-full text-xs font-bold transition shadow-md">Login</button>}
+         
+         <div className="flex items-center gap-3">
+             <button onClick={() => setShowSearch(true)} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition"><Search size={18}/></button>
+             {user ? <div className="flex items-center gap-2"><span className="text-xs text-gray-600 font-bold bg-gray-100 px-3 py-1 rounded-full">{user.name}</span><button onClick={logout} className="text-gray-400 hover:text-red-600"><Lock size={18} /></button></div> : <button onClick={() => setShowAuthModal(true)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-full text-xs font-bold transition shadow-md">Login</button>}
+         </div>
       </div>
+
+      {/* SEARCH OVERLAY */}
+      {showSearch && (
+        <div className="fixed inset-0 bg-white z-50 p-4 animate-in fade-in slide-in-from-top-10 duration-200">
+            <div className="flex items-center gap-3 mb-6">
+                <Search className="text-gray-400"/>
+                <input className="flex-1 text-lg font-bold outline-none text-gray-900 placeholder-gray-300" placeholder="Search..." autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                <button onClick={() => {setShowSearch(false); setSearchQuery(""); setPlayerStats(null);}} className="text-gray-500 hover:text-black font-bold text-sm">Cancel</button>
+            </div>
+            
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                {["Matches", "Tournament", "Player"].map(cat => (
+                    <button key={cat} onClick={() => { setSearchCategory(cat.toLowerCase()); setSearchQuery(""); setPlayerStats(null); }} className={`px-4 py-2 rounded-full text-sm font-bold border transition ${searchCategory === cat.toLowerCase() ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            <div className="space-y-4">
+                {searchCategory === 'player' ? (
+                    <div>
+                        <div className="flex gap-2 mb-4"><input className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200" placeholder="Enter full player name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><button onClick={fetchPlayerStats} className="bg-red-600 text-white px-4 rounded-xl font-bold">Go</button></div>
+                        {playerStats && (
+                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl">👤</div>
+                                <h3 className="text-xl font-bold text-center mb-4">{playerStats.name || "Unknown"}</h3>
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="bg-gray-50 p-2 rounded-lg"><p className="text-[10px] text-gray-500">MAT</p><p className="font-bold">{playerStats.matches}</p></div>
+                                    <div className="bg-gray-50 p-2 rounded-lg"><p className="text-[10px] text-gray-500">RUNS</p><p className="font-bold text-blue-600">{playerStats.runs}</p></div>
+                                    <div className="bg-gray-50 p-2 rounded-lg"><p className="text-[10px] text-gray-500">WKT</p><p className="font-bold text-green-600">{playerStats.wickets}</p></div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {getFilteredMatches().length > 0 ? getFilteredMatches().map(m => (
+                            <div key={m._id} onClick={() => isLive ? joinMatch(m) : openDetailView(m)} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-white hover:shadow-md transition">
+                                <div><p className="text-xs text-gray-400 font-bold uppercase">{m.seriesName}</p><p className="font-bold text-gray-900">{m.teamA?.name} vs {m.teamB?.name}</p></div>
+                                <ChevronRight size={16} className="text-gray-400"/>
+                            </div>
+                        )) : searchQuery && <p className="text-center text-gray-400 mt-10">No results found.</p>}
+                    </div>
+                )}
+            </div>
+        </div>
+      )}
 
       {showAuthModal && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative"><button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button><h3 className="text-gray-900 font-black text-2xl mb-1">{authMode === 'login' ? 'Welcome Back' : 'Join CricMad'}</h3><p className="text-xs text-gray-500 mb-6">Enter your details to continue</p>{authMode === 'signup' && <input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />}<input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} /><input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black mb-6 border border-gray-200 focus:border-red-500 outline-none" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} /><button onClick={handleAuth} className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mb-3 shadow-lg transition">{authMode === 'login' ? 'Login Securely' : 'Create Account'}</button><button onClick={setMasterCredentials} className="text-xs text-yellow-600 font-bold mb-4 flex items-center justify-center gap-1 w-full bg-yellow-50 py-2 rounded-lg border border-yellow-200"><Key size={12}/> Master Login (Demo)</button><button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-xs text-gray-500 hover:text-red-600 font-bold underline">{authMode === 'login' ? "New here? Create Account" : "Already have account? Login"}</button></div></div>}
 
