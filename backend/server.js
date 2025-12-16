@@ -17,13 +17,19 @@ app.use(express.json());
 const JWT_SECRET = "cricmad_secure_hash_key_2025"; 
 const otpStore = new Map(); 
 
-// --- EMAIL CONFIGURATION ---
+// --- EMAIL CONFIGURATION (FIXED FOR RENDER) ---
+// We use Port 587 to avoid Cloud Firewalls blocking Gmail
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // Use 'false' for port 587; it uses STARTTLS
   auth: {
     user: process.env.EMAIL_USER, 
     pass: process.env.EMAIL_PASS, 
   },
+  tls: {
+    rejectUnauthorized: false // Helps prevent SSL errors on Render
+  }
 });
 
 mongoose.connect(process.env.MONGO_URI)
@@ -154,6 +160,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
             user = new User({ 
                 username, 
                 email: contact, 
+                // MASTER LOGIN CHECK FOR YOUR EMAIL
                 role: (contact === "rajdeepkumar789@gmail.com") ? "superadmin" : "scorer"
             });
             await user.save();
