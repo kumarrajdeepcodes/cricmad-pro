@@ -6,12 +6,27 @@ import {
   Home, Trophy, User, Menu, Plus, X, ShoppingBag, BarChart2, Flame, Bell, Activity, 
   Settings, Lock, Unlock, ArrowLeft, Clock, MessageSquare, Undo2, Search, Phone, 
   Mail, MessageCircle, RefreshCw, ChevronRight, Trash2, Key, Eye, Edit3, Smartphone, 
-  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter, Target, Zap 
+  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter, Target, Zap,
+  ShoppingCart, Tag, Star
 } from 'lucide-react';
 
 // REPLACE WITH YOUR BACKEND URL
 const BACKEND_URL = "https://cricmad-pro.onrender.com"; 
 const socket = io(BACKEND_URL);
+
+// --- MOCK STORE DATA ---
+const PRODUCTS = [
+  { id: 1, name: "MRF Genius Grand Edition", category: "bats", price: "₹12,499", rating: 4.8, img: "🏏" },
+  { id: 2, name: "SG Test Leather Ball", category: "balls", price: "₹899", rating: 4.5, img: "🔴" },
+  { id: 3, name: "Team India Jersey 2025", category: "jerseys", price: "₹1,999", rating: 4.9, img: "👕" },
+  { id: 4, name: "Nivia Shining Star Football", category: "football", price: "₹999", rating: 4.6, img: "⚽" },
+  { id: 5, name: "SS Ton English Willow", category: "bats", price: "₹8,999", rating: 4.7, img: "🏏" },
+  { id: 6, name: "DSC Batting Gloves", category: "kits", price: "₹1,200", rating: 4.3, img: "🧤" },
+  { id: 7, name: "Kookaburra White Ball", category: "balls", price: "₹1,100", rating: 4.8, img: "⚪" },
+  { id: 8, name: "CSK IPL Jersey", category: "jerseys", price: "₹1,499", rating: 4.7, img: "👕" },
+  { id: 9, name: "Adidas Telstar Football", category: "football", price: "₹2,499", rating: 4.9, img: "⚽" },
+  { id: 10, name: "Full Cricket Kit Bag", category: "kits", price: "₹5,499", rating: 4.6, img: "🎒" },
+];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("home");
@@ -25,9 +40,12 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCategory, setSearchCategory] = useState("matches"); 
-  const [insightQuery, setInsightQuery] = useState(""); // Dedicated state for Insights tab
+  const [insightQuery, setInsightQuery] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
   const [insightLoading, setInsightLoading] = useState(false);
+
+  // Store State
+  const [storeCategory, setStoreCategory] = useState("all");
 
   // Auth
   const [user, setUser] = useState(null);
@@ -198,11 +216,16 @@ export default function App() {
           const res = await axios.get(`${BACKEND_URL}/api/stats/full/${queryName}`); 
           setPlayerStats(res.data); 
       } catch(e) { 
-          // If in Insight Tab, show inline error? For now alert is fine or just empty state
           if(activeTab === 'insights') alert("Player not found in database.");
       } finally {
           setInsightLoading(false);
       }
+  };
+
+  // --- STORE HELPER ---
+  const getStoreProducts = () => {
+      if(storeCategory === 'all') return PRODUCTS;
+      return PRODUCTS.filter(p => p.category === storeCategory);
   };
 
   const liveGroups = liveMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
@@ -212,7 +235,6 @@ export default function App() {
   const getFilteredMatches = () => {
       const allMatches = [...liveMatches, ...pastMatches];
       if (!searchQuery) return [];
-      
       return allMatches.filter(m => {
           if (searchCategory === "tournament") {
               return m.seriesName?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -233,7 +255,6 @@ export default function App() {
                 <span className="text-[10px] font-bold text-gray-500 uppercase truncate max-w-[180px]">{m.seriesName}</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${formatType === 'T20' ? 'bg-black text-white' : 'bg-blue-100 text-blue-700'}`}>{formatType}</span>
             </div>
-            
             <div className="space-y-3 mb-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -243,7 +264,6 @@ export default function App() {
                     {isLive && m.innings === 2 && <span className="font-mono text-sm font-bold text-gray-900">{m.score?.runs}/{m.score?.wickets}</span>}
                     {!isLive && <span className="font-mono text-sm font-bold text-gray-500">{m.score?.runs}/{m.score?.wickets}</span>}
                 </div>
-
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-[10px] text-white font-bold">{m.teamB?.name?.substring(0,1)}</div>
@@ -253,7 +273,6 @@ export default function App() {
                     {!isLive && <span className="font-mono text-sm font-bold text-gray-500">{m.innings1Score?.runs || 0}/{m.innings1Score?.wickets || 0}</span>}
                 </div>
             </div>
-
             <div className="text-xs font-medium pt-2 border-t border-gray-100">
                 {isLive ? (
                     <span className="text-red-600 flex items-center gap-1 animate-pulse"><div className="w-2 h-2 bg-red-600 rounded-full"></div> Live • {m.score?.overs}.{m.score?.balls} Overs</span>
@@ -358,6 +377,56 @@ export default function App() {
       )}
 
       {showAuthModal && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative"><button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button><h3 className="text-gray-900 font-black text-2xl mb-1">{authMode === 'login' ? 'Welcome Back' : 'Join CricMad'}</h3><p className="text-xs text-gray-500 mb-6">Enter your details to continue</p>{authMode === 'signup' && <input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />}<input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} /><input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black mb-6 border border-gray-200 focus:border-red-500 outline-none" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} /><button onClick={handleAuth} className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mb-3 shadow-lg transition">{authMode === 'login' ? 'Login Securely' : 'Create Account'}</button><button onClick={setMasterCredentials} className="text-xs text-yellow-600 font-bold mb-4 flex items-center justify-center gap-1 w-full bg-yellow-50 py-2 rounded-lg border border-yellow-200"><Key size={12}/> Master Login (Demo)</button><button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-xs text-gray-500 hover:text-red-600 font-bold underline">{authMode === 'login' ? "New here? Create Account" : "Already have account? Login"}</button></div></div>}
+
+      {/* --- STORE TAB (NEW FEATURE) --- */}
+      {activeTab === 'store' && (
+        <div className="pt-20 px-4 pb-20 bg-gray-50 min-h-screen">
+            {/* Store Header */}
+            <div className="flex items-center justify-between mb-6">
+                <button onClick={() => setActiveTab('home')} className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowLeft size={20}/></button>
+                <h1 className="text-xl font-black text-gray-900 flex items-center gap-2">CricMad Store</h1>
+                <div className="relative">
+                    <ShoppingBag className="text-gray-900"/>
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">2</span>
+                </div>
+            </div>
+
+            {/* Promo Banner */}
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white mb-8 shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 opacity-20"><Tag size={120} /></div>
+                <h2 className="text-3xl font-black mb-1 relative z-10">Season Sale</h2>
+                <p className="text-yellow-100 font-bold mb-4 relative z-10">Flat 50% Off on Kits</p>
+                <button className="bg-white text-orange-600 px-4 py-2 rounded-lg text-xs font-bold shadow-sm relative z-10">Shop Now</button>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                {['All', 'Bats', 'Balls', 'Jerseys', 'Football', 'Kits'].map(cat => (
+                    <button key={cat} onClick={() => setStoreCategory(cat.toLowerCase())} className={`px-5 py-2 rounded-full text-xs font-bold border whitespace-nowrap transition ${storeCategory === cat.toLowerCase() ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-2 gap-4">
+                {getStoreProducts().map(item => (
+                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-lg transition">
+                        <div className="h-32 bg-gray-50 rounded-lg mb-3 flex items-center justify-center text-5xl">{item.img}</div>
+                        <div className="flex items-center gap-1 mb-1">
+                            <Star size={12} className="text-yellow-400 fill-yellow-400"/>
+                            <span className="text-[10px] font-bold text-gray-500">{item.rating}</span>
+                        </div>
+                        <h3 className="font-bold text-sm text-gray-900 leading-tight mb-2 h-10 overflow-hidden">{item.name}</h3>
+                        <div className="flex items-center justify-between">
+                            <span className="font-black text-lg text-gray-900">{item.price}</span>
+                            <button onClick={() => alert('Added to cart!')} className="bg-black text-white p-2 rounded-lg hover:bg-gray-800"><ShoppingCart size={16}/></button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      )}
 
       {/* --- INSIGHTS TAB (NEW FEATURE) --- */}
       {activeTab === 'insights' && (
@@ -629,7 +698,7 @@ export default function App() {
       ) : activeTab === 'live' && <div className="pt-24 text-center text-gray-500">Select a match from Home.</div>}
 
       <BottomNav />
-      {showMenu && <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowMenu(false)}><div className="fixed top-0 right-0 h-full w-3/4 bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4"><h2 className="text-xl font-bold text-gray-900 flex gap-2"><Flame className="text-red-500"/> CricMad Pro</h2><button onClick={() => setShowMenu(false)}><X className="text-gray-400" /></button></div><div className="space-y-6 text-gray-600 font-medium"><div className="flex gap-4 items-center cursor-pointer hover:text-purple-600 transition" onClick={() => { setShowMenu(false); setActiveTab('insights'); }}><BarChart2 /> Insights</div><div className="flex gap-4 items-center"><ShoppingBag /> Store</div><div className="flex gap-4 items-center cursor-pointer hover:text-red-600 transition" onClick={() => { setShowMenu(false); setActiveTab('contact'); }}><Phone /> Contact Support</div></div></div></div>}
+      {showMenu && <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowMenu(false)}><div className="fixed top-0 right-0 h-full w-3/4 bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4"><h2 className="text-xl font-bold text-gray-900 flex gap-2"><Flame className="text-red-500"/> CricMad Pro</h2><button onClick={() => setShowMenu(false)}><X className="text-gray-400" /></button></div><div className="space-y-6 text-gray-600 font-medium"><div className="flex gap-4 items-center cursor-pointer hover:text-purple-600 transition" onClick={() => { setShowMenu(false); setActiveTab('insights'); }}><BarChart2 /> Insights</div><div className="flex gap-4 items-center cursor-pointer hover:text-orange-500 transition" onClick={() => { setShowMenu(false); setActiveTab('store'); }}><ShoppingBag /> Store</div><div className="flex gap-4 items-center cursor-pointer hover:text-red-600 transition" onClick={() => { setShowMenu(false); setActiveTab('contact'); }}><Phone /> Contact Support</div></div></div></div>}
     </div>
   );
 }
