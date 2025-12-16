@@ -7,7 +7,7 @@ import {
   Settings, Lock, Unlock, ArrowLeft, Clock, MessageSquare, Undo2, Search, Phone, 
   Mail, MessageCircle, RefreshCw, ChevronRight, Trash2, Key, Eye, Edit3, Smartphone, 
   Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter, Target, Zap,
-  ShoppingCart, Tag, Star
+  ShoppingCart, Tag, Star, LogIn
 } from 'lucide-react';
 
 // REPLACE WITH YOUR BACKEND URL
@@ -47,13 +47,16 @@ export default function App() {
   // Store State
   const [storeCategory, setStoreCategory] = useState("all");
 
-  // Auth
+  // Auth & OTP State
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [authStep, setAuthStep] = useState(1); // 1: Input Contact, 2: OTP, 3: Username(New)
+  const [contactType, setContactType] = useState("email"); // email or mobile
+  const [contactValue, setContactValue] = useState("");
+  const [otpValue, setOtpValue] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [isMasterLogin, setIsMasterLogin] = useState(false); // Toggle for password login
+  const [masterPassword, setMasterPassword] = useState("");
 
   const [step, setStep] = useState(1);
   const [seriesName, setSeriesName] = useState("");
@@ -121,21 +124,41 @@ export default function App() {
       } catch(e) { console.error("Fetch failed"); }
   };
 
-  const handleAuth = async () => {
-      const url = authMode === "login" ? `${BACKEND_URL}/api/auth/login` : `${BACKEND_URL}/api/auth/signup`;
-      const payload = authMode === "login" ? { email, password } : { username, email, password };
+  // --- NEW AUTH LOGIC ---
+  const handleSendOtp = async () => {
+      if(!contactValue) return alert("Enter valid contact");
       try {
-          const res = await axios.post(url, payload);
-          localStorage.setItem("token", res.data.token);
-          localStorage.setItem("user", JSON.stringify(res.data.user));
-          setUser(res.data.user); setShowAuthModal(false); alert(`Welcome ${res.data.user.name}!`);
-      } catch(e) { alert(e.response?.data?.error || "Auth failed"); }
+          await axios.post(`${BACKEND_URL}/api/auth/send-otp`, { contact: contactValue });
+          setAuthStep(2);
+          alert("OTP Sent! Check your Backend Terminal/Console.");
+      } catch(e) { alert("Failed to send OTP"); }
   };
 
-  const setMasterCredentials = () => {
-      setAuthMode("login"); 
-      setEmail("rajdeepkumar789@gmail.com");
-      setPassword("ishi#789");
+  const handleVerifyOtp = async () => {
+      try {
+          const res = await axios.post(`${BACKEND_URL}/api/auth/verify-otp`, { contact: contactValue, otp: otpValue, username: newUsername });
+          if(res.data.newUser) {
+              setAuthStep(3); // Go to username input
+          } else {
+              loginSuccess(res.data);
+          }
+      } catch(e) { alert("Invalid OTP"); }
+  };
+
+  const handleMasterLogin = async () => {
+      try {
+          const res = await axios.post(`${BACKEND_URL}/api/auth/login-master`, { email: contactValue, password: masterPassword });
+          loginSuccess(res.data);
+      } catch(e) { alert("Invalid Credentials"); }
+  };
+
+  const loginSuccess = (data) => {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setUser(data.user);
+      setShowAuthModal(false);
+      // Reset Auth State
+      setAuthStep(1); setContactValue(""); setOtpValue(""); setNewUsername(""); setMasterPassword("");
   };
 
   const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); setUser(null); setActiveTab("home"); };
@@ -207,7 +230,6 @@ export default function App() {
   const changeBowler = async (name) => { await securePost(`${BACKEND_URL}/api/match/new-bowler`, { matchId: match._id, bowlerName: name }); setShowBowlerChange(false); };
   const changeBatter = async (name) => { await securePost(`${BACKEND_URL}/api/match/new-batter`, { matchId: match._id, batterName: name }); };
 
-  // --- INSIGHTS FETCH LOGIC ---
   const fetchPlayerStats = async (queryName) => {
       if(!queryName) return;
       setInsightLoading(true);
@@ -222,7 +244,6 @@ export default function App() {
       }
   };
 
-  // --- STORE HELPER ---
   const getStoreProducts = () => {
       if(storeCategory === 'all') return PRODUCTS;
       return PRODUCTS.filter(p => p.category === storeCategory);
@@ -231,7 +252,6 @@ export default function App() {
   const liveGroups = liveMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
   const pastGroups = pastMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
 
-  // FILTER LOGIC FOR SEARCH OVERLAY
   const getFilteredMatches = () => {
       const allMatches = [...liveMatches, ...pastMatches];
       if (!searchQuery) return [];
@@ -246,7 +266,6 @@ export default function App() {
       });
   };
 
-  // HELPER FOR COMPACT CARDS
   const MatchCard = ({ m, isLive }) => {
       const formatType = (m.matchSettings?.totalOvers || 20) <= 20 ? "T20" : "ODI";
       return (
@@ -284,7 +303,6 @@ export default function App() {
       );
   };
 
-  // --- SCORECARD COMPONENT ---
   const Scorecard = ({ teamName, squad }) => (
       <div className="bg-[#1F2937] p-4 rounded-xl border border-gray-700">
           <h3 className="text-white font-bold mb-3 border-b border-gray-600 pb-2">{teamName} Batting</h3>
@@ -325,9 +343,59 @@ export default function App() {
          
          <div className="flex items-center gap-3">
              <button onClick={() => setShowSearch(true)} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition"><Search size={18}/></button>
-             {user ? <div className="flex items-center gap-2"><span className="text-xs text-gray-600 font-bold bg-gray-100 px-3 py-1 rounded-full">{user.name}</span><button onClick={logout} className="text-gray-400 hover:text-red-600"><Lock size={18} /></button></div> : <button onClick={() => setShowAuthModal(true)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-full text-xs font-bold transition shadow-md">Login</button>}
+             {user ? <div className="flex items-center gap-2"><span className="text-xs text-gray-600 font-bold bg-gray-100 px-3 py-1 rounded-full">{user.name}</span><button onClick={logout} className="text-gray-400 hover:text-red-600"><Lock size={18} /></button></div> : <button onClick={() => { setShowAuthModal(true); setIsMasterLogin(false); setAuthStep(1); }} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-full text-xs font-bold transition shadow-md">Login</button>}
          </div>
       </div>
+
+      {/* AUTH MODAL (OTP UPDATE) */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative">
+                <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button>
+                <h3 className="text-gray-900 font-black text-2xl mb-1">{isMasterLogin ? "Master Login" : "Welcome Back"}</h3>
+                <p className="text-xs text-gray-500 mb-6">{isMasterLogin ? "Super Admin Access" : "Login with OTP"}</p>
+
+                {isMasterLogin ? (
+                    // --- MASTER PASSWORD LOGIN ---
+                    <div className="space-y-3">
+                        <input className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200" placeholder="Master Email" value={contactValue} onChange={e => setContactValue(e.target.value)} />
+                        <input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200" placeholder="Password" value={masterPassword} onChange={e => setMasterPassword(e.target.value)} />
+                        <button onClick={handleMasterLogin} className="w-full bg-black text-white p-3 rounded-xl font-bold shadow-lg">Login as Master</button>
+                        <button onClick={() => setIsMasterLogin(false)} className="text-xs text-gray-500 underline">Back to User Login</button>
+                    </div>
+                ) : (
+                    // --- OTP LOGIN FLOW ---
+                    <div className="space-y-3">
+                        {authStep === 1 && (
+                            <>
+                                <div className="flex bg-gray-100 rounded-lg p-1 mb-2">
+                                    <button onClick={() => setContactType("email")} className={`flex-1 py-1 text-xs font-bold rounded-md ${contactType==="email" ? "bg-white shadow text-black" : "text-gray-500"}`}>Email</button>
+                                    <button onClick={() => setContactType("mobile")} className={`flex-1 py-1 text-xs font-bold rounded-md ${contactType==="mobile" ? "bg-white shadow text-black" : "text-gray-500"}`}>Mobile</button>
+                                </div>
+                                <input className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200" placeholder={contactType === "email" ? "Enter Email" : "Enter Mobile Number"} value={contactValue} onChange={e => setContactValue(e.target.value)} />
+                                <button onClick={handleSendOtp} className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold shadow-lg transition">Get OTP</button>
+                            </>
+                        )}
+                        {authStep === 2 && (
+                            <>
+                                <p className="text-xs text-green-600 font-bold">OTP Sent to {contactValue}</p>
+                                <input className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200 text-center font-mono text-lg tracking-widest" placeholder="XXXXXX" value={otpValue} onChange={e => setOtpValue(e.target.value)} maxLength={6} />
+                                <button onClick={handleVerifyOtp} className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-bold shadow-lg transition">Verify & Login</button>
+                            </>
+                        )}
+                        {authStep === 3 && (
+                            <>
+                                <p className="text-xs text-blue-600 font-bold">New Account! Pick a Username</p>
+                                <input className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200" placeholder="Username" value={newUsername} onChange={e => setNewUsername(e.target.value)} />
+                                <button onClick={handleVerifyOtp} className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl font-bold shadow-lg transition">Complete Signup</button>
+                            </>
+                        )}
+                        {authStep === 1 && <button onClick={() => { setIsMasterLogin(true); setContactValue(""); }} className="text-xs text-gray-400 font-bold mt-4 flex items-center justify-center gap-1 w-full"><Key size={12}/> Master Login</button>}
+                    </div>
+                )}
+            </div>
+        </div>
+      )}
 
       {/* GLOBAL SEARCH OVERLAY */}
       {showSearch && (
@@ -375,8 +443,6 @@ export default function App() {
             </div>
         </div>
       )}
-
-      {showAuthModal && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative"><button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button><h3 className="text-gray-900 font-black text-2xl mb-1">{authMode === 'login' ? 'Welcome Back' : 'Join CricMad'}</h3><p className="text-xs text-gray-500 mb-6">Enter your details to continue</p>{authMode === 'signup' && <input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />}<input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} /><input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black mb-6 border border-gray-200 focus:border-red-500 outline-none" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} /><button onClick={handleAuth} className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mb-3 shadow-lg transition">{authMode === 'login' ? 'Login Securely' : 'Create Account'}</button><button onClick={setMasterCredentials} className="text-xs text-yellow-600 font-bold mb-4 flex items-center justify-center gap-1 w-full bg-yellow-50 py-2 rounded-lg border border-yellow-200"><Key size={12}/> Master Login (Demo)</button><button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-xs text-gray-500 hover:text-red-600 font-bold underline">{authMode === 'login' ? "New here? Create Account" : "Already have account? Login"}</button></div></div>}
 
       {/* --- STORE TAB (NEW FEATURE) --- */}
       {activeTab === 'store' && (
