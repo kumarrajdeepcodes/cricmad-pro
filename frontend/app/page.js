@@ -519,6 +519,13 @@ export default function App() {
            {/* 3. FEATURES SECTION (Why CricMad?) */}
            <div className="px-6 mb-12">
                <h2 className="text-2xl font-black text-center text-gray-900 mb-8">Why CricMad?</h2>
+               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-gray-200">
+                   <img 
+                       src="http://googleusercontent.com/image_generation_content/0" 
+                       alt="Why CricMad Feature Highlights" 
+                       className="w-full h-auto object-cover"
+                   />
+               </div>
                <div className="space-y-8">
                    <div className="flex gap-4 items-start">
                        <span className="text-5xl font-black text-gray-200">01</span>
