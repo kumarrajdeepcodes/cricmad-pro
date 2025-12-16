@@ -188,8 +188,46 @@ export default function App() {
       try { const res = await axios.get(`${BACKEND_URL}/api/stats/full/${searchQuery}`); setPlayerStats(res.data); } catch(e) { alert("Player not found"); }
   };
 
-  const liveGroups = liveMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
-  const pastGroups = pastMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
+  // HELPER FOR COMPACT CARDS
+  const MatchCard = ({ m, isLive }) => {
+      const formatType = (m.matchSettings?.totalOvers || 20) <= 20 ? "T20" : "ODI";
+      return (
+        <div onClick={() => isLive ? joinMatch(m) : openDetailView(m)} className="min-w-[280px] bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer snap-start">
+            <div className="flex justify-between items-start mb-3 border-b border-gray-100 pb-2">
+                <span className="text-[10px] font-bold text-gray-500 uppercase truncate max-w-[180px]">{m.seriesName}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${formatType === 'T20' ? 'bg-black text-white' : 'bg-blue-100 text-blue-700'}`}>{formatType}</span>
+            </div>
+            
+            <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-[10px] text-white font-bold">{m.teamA?.name?.substring(0,1)}</div>
+                        <span className="font-bold text-gray-900 text-sm">{m.teamA?.name}</span>
+                    </div>
+                    {isLive && m.innings === 2 && <span className="font-mono text-sm font-bold text-gray-900">{m.score?.runs}/{m.score?.wickets}</span>}
+                    {!isLive && <span className="font-mono text-sm font-bold text-gray-500">{m.score?.runs}/{m.score?.wickets}</span>}
+                </div>
+
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-[10px] text-white font-bold">{m.teamB?.name?.substring(0,1)}</div>
+                        <span className="font-bold text-gray-900 text-sm">{m.teamB?.name}</span>
+                    </div>
+                    {isLive && m.innings === 1 && <span className="font-mono text-sm font-bold text-gray-900">{m.score?.runs}/{m.score?.wickets}</span>}
+                    {!isLive && <span className="font-mono text-sm font-bold text-gray-500">{m.innings1Score?.runs || 0}/{m.innings1Score?.wickets || 0}</span>}
+                </div>
+            </div>
+
+            <div className="text-xs font-medium pt-2 border-t border-gray-100">
+                {isLive ? (
+                    <span className="text-red-600 flex items-center gap-1 animate-pulse"><div className="w-2 h-2 bg-red-600 rounded-full"></div> Live • {m.score?.overs}.{m.score?.balls} Overs</span>
+                ) : (
+                    <span className="text-blue-600">{m.resultMsg || "Match Completed"}</span>
+                )}
+            </div>
+        </div>
+      );
+  };
 
   // --- SCORECARD COMPONENT ---
   const Scorecard = ({ teamName, squad }) => (
@@ -301,13 +339,21 @@ export default function App() {
                </div>
            </div>
 
-           {/* 2. LIVE MATCHES DASHBOARD (Moved ABOVE 'Why CricMad') */}
-           <div className="px-4 mb-12">
+           {/* 2. LIVE MATCHES (COMPACT SCROLLING CARDS) */}
+           <div className="px-4 mb-8">
                <div className="flex items-center justify-between mb-4">
                    <h3 className="text-gray-900 font-bold flex items-center gap-2"><Activity size={18} className="text-red-600"/> Live Now</h3>
-                   <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">{Object.keys(liveGroups).length} Matches</span>
+                   {liveMatches.length > 0 && <span className="text-xs text-red-600 font-bold animate-pulse">● {liveMatches.length} Live</span>}
                </div>
-               {Object.keys(liveGroups).length > 0 ? Object.keys(liveGroups).map(series => (<div key={series} className="mb-6"><h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1 tracking-wider">{series}</h4>{liveGroups[series].slice(0, 2).map((m) => (<div key={m._id} onClick={() => joinMatch(m)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-3 cursor-pointer hover:border-red-500 transition relative overflow-hidden"><div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div><div className="flex justify-between items-start mb-3"><span className="bg-red-50 text-red-600 text-[10px] px-2 py-0.5 rounded font-bold animate-pulse flex items-center gap-1">● LIVE</span></div><div className="flex justify-between items-center"><div><span className="font-bold text-lg block text-gray-900">{m.teamA?.name}</span><span className="text-xs text-gray-400 font-medium">Batting</span></div><div className="text-right"><span className="font-black text-2xl block text-gray-900">{m.score?.runs}/{m.score?.wickets}</span><span className="text-xs text-gray-400 font-medium">({m.score?.overs}.{m.score?.balls} ov)</span></div></div></div>))}</div>)) : <div className="text-center p-8 bg-white rounded-2xl border border-dashed border-gray-300"><p className="text-gray-400 text-sm font-medium">No live matches right now.</p></div>}
+               
+               {/* Horizontal Scroll Container */}
+               {liveMatches.length > 0 ? (
+                   <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                       {liveMatches.map((m) => <MatchCard key={m._id} m={m} isLive={true} />)}
+                   </div>
+               ) : (
+                   <div className="text-center p-6 bg-white rounded-2xl border border-dashed border-gray-300"><p className="text-gray-400 text-sm font-medium">No live matches.</p></div>
+               )}
            </div>
 
            {/* 3. FEATURES SECTION (Why CricMad?) */}
@@ -345,10 +391,16 @@ export default function App() {
                </div>
            </div>
 
-           {/* 4. RECENT MATCHES (Moved BELOW 'Why CricMad') */}
+           {/* 4. RECENT MATCHES (COMPACT SCROLLING CARDS) */}
            <div className="px-4">
                <h3 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><Clock size={18} className="text-blue-600"/> Recent Results</h3>
-               {Object.keys(pastGroups).length > 0 ? Object.keys(pastGroups).map(series => (<div key={series} className="mb-6"><h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1 tracking-wider">{series}</h4>{pastGroups[series].slice(0, 2).map((m) => (<div key={m._id} onClick={() => openDetailView(m)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 mb-2"><div className="flex justify-between mb-3 border-b border-gray-100 pb-2"><div><p className="text-sm font-bold text-gray-900">{m.teamB?.name}</p><p className="text-xs text-gray-500 font-medium">{m.innings1Score?.runs || 0}/{m.innings1Score?.wickets || 0}</p></div><div className="text-right"><p className="text-sm font-bold text-gray-900">{m.teamA?.name}</p><p className="text-xs text-gray-500 font-medium">{m.score?.runs}/{m.score?.wickets}</p></div></div><div className="text-xs text-green-600 font-bold bg-green-50 inline-block px-2 py-1 rounded">{m.resultMsg || "Match Completed"}</div></div>))}</div>)) : <div className="text-gray-500 text-sm">No completed matches.</div>}
+               {pastMatches.length > 0 ? (
+                   <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                       {pastMatches.map((m) => <MatchCard key={m._id} m={m} isLive={false} />)}
+                   </div>
+               ) : (
+                   <div className="text-gray-500 text-sm text-center">No completed matches.</div>
+               )}
            </div>
 
            {/* JOIN TEAM FOOTER */}
