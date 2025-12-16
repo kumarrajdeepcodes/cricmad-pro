@@ -521,10 +521,10 @@ export default function App() {
                <h2 className="text-2xl font-black text-center text-gray-900 mb-8">Why CricMad?</h2>
                <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-gray-200">
                    <img 
-                       src="http://googleusercontent.com/image_generation_content/0" 
-                       alt="Why CricMad Feature Highlights" 
-                       className="w-full h-auto object-cover"
-                   />
+    src="/cricmad-banner.jpg" 
+    alt="Why CricMad" 
+    className="w-full h-auto object-cover"
+/>
                </div>
                <div className="space-y-8">
                    <div className="flex gap-4 items-start">
