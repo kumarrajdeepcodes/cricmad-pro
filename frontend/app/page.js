@@ -285,10 +285,10 @@ export default function App() {
         </div>
       )}
 
-      {/* --- HOME TAB (REDESIGNED) --- */}
+      {/* --- HOME TAB (REARRANGED LAYOUT) --- */}
       {activeTab === 'home' && (
         <div className="pt-16 pb-20">
-           {/* HERO SECTION */}
+           {/* 1. HERO SECTION */}
            <div className="bg-gradient-to-br from-[#d32f2f] to-[#b71c1c] text-white pt-10 pb-16 px-6 rounded-b-[40px] shadow-2xl mb-10 relative overflow-hidden">
                <div className="absolute top-0 right-0 opacity-10"><Trophy size={300} /></div>
                <div className="relative z-10">
@@ -301,7 +301,16 @@ export default function App() {
                </div>
            </div>
 
-           {/* FEATURES SECTION (Why CricMad?) */}
+           {/* 2. LIVE MATCHES DASHBOARD (Moved ABOVE 'Why CricMad') */}
+           <div className="px-4 mb-12">
+               <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-gray-900 font-bold flex items-center gap-2"><Activity size={18} className="text-red-600"/> Live Now</h3>
+                   <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">{Object.keys(liveGroups).length} Matches</span>
+               </div>
+               {Object.keys(liveGroups).length > 0 ? Object.keys(liveGroups).map(series => (<div key={series} className="mb-6"><h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1 tracking-wider">{series}</h4>{liveGroups[series].slice(0, 2).map((m) => (<div key={m._id} onClick={() => joinMatch(m)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-3 cursor-pointer hover:border-red-500 transition relative overflow-hidden"><div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div><div className="flex justify-between items-start mb-3"><span className="bg-red-50 text-red-600 text-[10px] px-2 py-0.5 rounded font-bold animate-pulse flex items-center gap-1">● LIVE</span></div><div className="flex justify-between items-center"><div><span className="font-bold text-lg block text-gray-900">{m.teamA?.name}</span><span className="text-xs text-gray-400 font-medium">Batting</span></div><div className="text-right"><span className="font-black text-2xl block text-gray-900">{m.score?.runs}/{m.score?.wickets}</span><span className="text-xs text-gray-400 font-medium">({m.score?.overs}.{m.score?.balls} ov)</span></div></div></div>))}</div>)) : <div className="text-center p-8 bg-white rounded-2xl border border-dashed border-gray-300"><p className="text-gray-400 text-sm font-medium">No live matches right now.</p></div>}
+           </div>
+
+           {/* 3. FEATURES SECTION (Why CricMad?) */}
            <div className="px-6 mb-12">
                <h2 className="text-2xl font-black text-center text-gray-900 mb-8">Why CricMad?</h2>
                <div className="space-y-8">
@@ -336,15 +345,9 @@ export default function App() {
                </div>
            </div>
 
-           {/* LIVE MATCHES DASHBOARD (Preserved Functionality) */}
+           {/* 4. RECENT MATCHES (Moved BELOW 'Why CricMad') */}
            <div className="px-4">
-               <div className="flex items-center justify-between mb-4">
-                   <h3 className="text-gray-900 font-bold flex items-center gap-2"><Activity size={18} className="text-red-600"/> Live Now</h3>
-                   <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">{Object.keys(liveGroups).length} Matches</span>
-               </div>
-               {Object.keys(liveGroups).length > 0 ? Object.keys(liveGroups).map(series => (<div key={series} className="mb-6"><h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1 tracking-wider">{series}</h4>{liveGroups[series].slice(0, 2).map((m) => (<div key={m._id} onClick={() => joinMatch(m)} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-3 cursor-pointer hover:border-red-500 transition relative overflow-hidden"><div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div><div className="flex justify-between items-start mb-3"><span className="bg-red-50 text-red-600 text-[10px] px-2 py-0.5 rounded font-bold animate-pulse flex items-center gap-1">● LIVE</span></div><div className="flex justify-between items-center"><div><span className="font-bold text-lg block text-gray-900">{m.teamA?.name}</span><span className="text-xs text-gray-400 font-medium">Batting</span></div><div className="text-right"><span className="font-black text-2xl block text-gray-900">{m.score?.runs}/{m.score?.wickets}</span><span className="text-xs text-gray-400 font-medium">({m.score?.overs}.{m.score?.balls} ov)</span></div></div></div>))}</div>)) : <div className="text-center p-8 bg-white rounded-2xl border border-dashed border-gray-300"><p className="text-gray-400 text-sm font-medium">No live matches right now.</p></div>}
-               
-               <h3 className="text-gray-900 font-bold mb-4 mt-8 flex items-center gap-2"><Clock size={18} className="text-blue-600"/> Recent Results</h3>
+               <h3 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><Clock size={18} className="text-blue-600"/> Recent Results</h3>
                {Object.keys(pastGroups).length > 0 ? Object.keys(pastGroups).map(series => (<div key={series} className="mb-6"><h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1 tracking-wider">{series}</h4>{pastGroups[series].slice(0, 2).map((m) => (<div key={m._id} onClick={() => openDetailView(m)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 mb-2"><div className="flex justify-between mb-3 border-b border-gray-100 pb-2"><div><p className="text-sm font-bold text-gray-900">{m.teamB?.name}</p><p className="text-xs text-gray-500 font-medium">{m.innings1Score?.runs || 0}/{m.innings1Score?.wickets || 0}</p></div><div className="text-right"><p className="text-sm font-bold text-gray-900">{m.teamA?.name}</p><p className="text-xs text-gray-500 font-medium">{m.score?.runs}/{m.score?.wickets}</p></div></div><div className="text-xs text-green-600 font-bold bg-green-50 inline-block px-2 py-1 rounded">{m.resultMsg || "Match Completed"}</div></div>))}</div>)) : <div className="text-gray-500 text-sm">No completed matches.</div>}
            </div>
 
