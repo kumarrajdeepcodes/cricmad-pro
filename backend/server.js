@@ -18,16 +18,14 @@ const JWT_SECRET = "cricmad_secure_hash_key_2025";
 const otpStore = new Map(); 
 
 // --- EMAIL CONFIGURATION (Port 587 for Render) ---
+// --- EMAIL CONFIGURATION (SSL FIX FOR RENDER TIMEOUT) ---
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // STARTTLS
+  port: 465,       // Change to 465
+  secure: true,    // Change to true for SSL
   auth: {
     user: process.env.EMAIL_USER, 
     pass: process.env.EMAIL_PASS, 
-  },
-  tls: {
-    rejectUnauthorized: false
   }
 });
 
