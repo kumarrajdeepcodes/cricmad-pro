@@ -516,43 +516,61 @@ export default function App() {
                )}
            </div>
 
-           {/* 3. FEATURES SECTION (Why CricMad?) */}
-           <div className="px-6 mb-12">
-               <h2 className="text-2xl font-black text-center text-gray-900 mb-8">Why CricMad?</h2>
-               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-gray-200">
+           {/* 3. FEATURES SECTION (Why CricMad?) - Image Background with Red Overlay */}
+           <div className="px-4 mb-12">
+               <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-red-900/20">
+                   {/* 1. The Background Image */}
                    <img 
-    src="/cricmad-banner.jpg" 
-    alt="Why CricMad" 
-    className="w-full h-auto object-cover"
-/>
-               </div>
-               <div className="space-y-8">
-                   <div className="flex gap-4 items-start">
-                       <span className="text-5xl font-black text-gray-200">01</span>
-                       <div>
-                           <h3 className="font-bold text-lg text-gray-900">Live Scoring</h3>
-                           <p className="text-sm text-gray-500 leading-relaxed">Get instant updates on ongoing matches with professional live scoring, ball by ball.</p>
-                       </div>
-                   </div>
-                   <div className="flex gap-4 items-start">
-                       <span className="text-5xl font-black text-gray-200">02</span>
-                       <div>
-                           <h3 className="font-bold text-lg text-gray-900">Scorecard</h3>
-                           <p className="text-sm text-gray-500 leading-relaxed">Explore player performances and match outcomes with a detailed, TV-style scorecard.</p>
-                       </div>
-                   </div>
-                   <div className="flex gap-4 items-start">
-                       <span className="text-5xl font-black text-gray-200">03</span>
-                       <div>
-                           <h3 className="font-bold text-lg text-gray-900">Organise Tournaments</h3>
-                           <p className="text-sm text-gray-500 leading-relaxed">Seamlessly organize tournaments, manage teams, and plan your schedules better.</p>
-                       </div>
-                   </div>
-                   <div className="flex gap-4 items-start">
-                       <span className="text-5xl font-black text-gray-200">04</span>
-                       <div>
-                           <h3 className="font-bold text-lg text-gray-900">CricInsights</h3>
-                           <p className="text-sm text-gray-500 leading-relaxed">Get in-depth analysis of matches, players and opponents with AI-driven insights.</p>
+                       src="/cricmad-banner.png" 
+                       alt="CricMad Background" 
+                       className="absolute inset-0 w-full h-full object-cover"
+                   />
+                   
+                   {/* 2. The Red Gradient Overlay (Makes text readable & adds Red theme) */}
+                   <div className="absolute inset-0 bg-gradient-to-br from-red-900/95 via-red-800/80 to-black/90"></div>
+
+                   {/* 3. The Content Layer */}
+                   <div className="relative z-10 p-8">
+                       <h2 className="text-3xl font-black text-center text-white mb-10 tracking-tight drop-shadow-md">
+                           Why <span className="text-red-200">CricMad?</span>
+                       </h2>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           {/* Item 01 */}
+                           <div className="flex gap-4 items-start group">
+                               <span className="text-5xl font-black text-white/20 group-hover:text-white transition duration-300">01</span>
+                               <div>
+                                   <h3 className="font-bold text-xl text-white mb-1">Live Scoring</h3>
+                                   <p className="text-sm text-red-100 leading-relaxed font-medium">Get instant updates on ongoing matches with professional live scoring, ball by ball.</p>
+                               </div>
+                           </div>
+
+                           {/* Item 02 */}
+                           <div className="flex gap-4 items-start group">
+                               <span className="text-5xl font-black text-white/20 group-hover:text-white transition duration-300">02</span>
+                               <div>
+                                   <h3 className="font-bold text-xl text-white mb-1">Scorecard</h3>
+                                   <p className="text-sm text-red-100 leading-relaxed font-medium">Explore player performances and match outcomes with a detailed, TV-style scorecard.</p>
+                               </div>
+                           </div>
+
+                           {/* Item 03 */}
+                           <div className="flex gap-4 items-start group">
+                               <span className="text-5xl font-black text-white/20 group-hover:text-white transition duration-300">03</span>
+                               <div>
+                                   <h3 className="font-bold text-xl text-white mb-1">Organise Tournaments</h3>
+                                   <p className="text-sm text-red-100 leading-relaxed font-medium">Seamlessly organize tournaments, manage teams, and plan your schedules better.</p>
+                               </div>
+                           </div>
+
+                           {/* Item 04 */}
+                           <div className="flex gap-4 items-start group">
+                               <span className="text-5xl font-black text-white/20 group-hover:text-white transition duration-300">04</span>
+                               <div>
+                                   <h3 className="font-bold text-xl text-white mb-1">CricInsights</h3>
+                                   <p className="text-sm text-red-100 leading-relaxed font-medium">Get in-depth analysis of matches, players and opponents with AI-driven insights.</p>
+                               </div>
+                           </div>
                        </div>
                    </div>
                </div>
@@ -626,7 +644,6 @@ export default function App() {
            <button onClick={() => { setMatch(null); setActiveTab("home"); fetchAllMatches(); }} className="flex items-center gap-2 text-gray-400 mb-4 hover:text-white font-bold"><ArrowLeft size={16} /> Exit Match</button>
            <div className="bg-[#1F2937] p-6 rounded-3xl text-center mb-4 border border-gray-700 shadow-xl relative overflow-hidden"><div className="relative z-10"><p className="text-xs text-gray-400 uppercase font-bold mb-2 tracking-widest">{match.teamA?.name} vs {match.teamB?.name}</p><h1 className="text-6xl font-black text-white mb-2 tracking-tighter">{match.score?.runs}/{match.score?.wickets}</h1><p className="text-gray-400 font-mono text-sm">Overs: {match.score?.overs}.{match.score?.balls}</p>{match.innings === 2 && <p className="text-green-400 text-sm font-bold mt-2 uppercase">Target: {match.target}</p>}</div></div>
            {match.currentInnings ? <div className="bg-[#1F2937] p-4 rounded-2xl mb-4 border border-gray-700"><div className="flex justify-between items-center mb-3 p-3 bg-gray-800 rounded-xl border-l-4 border-red-500"><div><p className="font-bold text-white text-xl">{match.currentInnings.striker?.name}</p><p className="text-[10px] text-gray-400 uppercase">Striker</p></div><div className="text-right"><span className="font-bold text-2xl text-white">{match.currentInnings.striker?.runs}</span></div></div><div className="flex justify-between items-center mb-3 p-3 opacity-60"><div><p className="font-bold text-gray-200 text-xl">{match.currentInnings.nonStriker?.name}</p><p className="text-[10px] text-gray-400 uppercase">Non-Striker</p></div><div className="text-right"><span className="font-bold text-2xl text-gray-200">{match.currentInnings.nonStriker?.runs}</span></div></div><div className="border-t border-gray-700 pt-3 flex justify-between items-center px-2"><div><p className="font-bold text-blue-400 text-lg">{match.currentInnings.bowler?.name} {canScore && <button onClick={() => setShowBowlerChange(true)}><RefreshCw size={14} className="ml-2 text-yellow-500"/></button>}</p><p className="text-[10px] text-gray-500 uppercase">Bowler</p></div><div className="text-right"><span className="font-mono text-yellow-500 font-bold text-xl">{match.currentInnings.bowler?.wickets}-{match.currentInnings.bowler?.runs}</span></div></div></div> : <div className="text-center text-white py-10">Loading Data...</div>}
-           
            {/* MODALS */}
            {canScore && showWicketType && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-red-500 text-center"><h3 className="text-xl font-bold text-white mb-4">How Wicket Fell?</h3><div className="grid grid-cols-2 gap-3">{["Bowled", "Catch", "LBW", "Run Out", "Stumped", "Hit Wicket"].map(type => (<button key={type} onClick={() => initiateScoreUpdate(0, true, false, type)} className="bg-gray-800 hover:bg-red-600 p-3 rounded-xl font-bold text-white transition border border-gray-600">{type}</button>))}</div><button onClick={() => setShowWicketType(false)} className="mt-4 text-gray-400 underline text-sm">Cancel</button></div></div>)}
            {canScore && showBowlerChange && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"><div className="bg-[#1F2937] w-full max-w-sm p-6 rounded-2xl border border-blue-500"><h3 className="font-bold text-xl text-blue-400 mb-4 text-center">Change Bowler</h3><div className="grid grid-cols-2 gap-2">{match.teamB?.squad.filter(p => p.name !== match.currentInnings.bowler?.name).map(p => <button key={p.name} onClick={() => changeBowler(p.name)} className="bg-blue-600 p-3 rounded-xl font-bold text-white">{p.name}</button>)}</div><button onClick={() => setShowBowlerChange(false)} className="mt-4 text-gray-400 text-sm block mx-auto">Cancel</button></div></div>)}
