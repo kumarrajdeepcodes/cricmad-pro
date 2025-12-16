@@ -14,7 +14,7 @@ import {
 const BACKEND_URL = "https://cricmad-pro.onrender.com"; 
 const socket = io(BACKEND_URL);
 
-// --- MOCK STORE DATA ---
+// ... (KEEP PRODUCTS ARRAY) ...
 const PRODUCTS = [
   { id: 1, name: "MRF Genius Grand Edition", category: "bats", price: "₹12,499", rating: 4.8, img: "🏏" },
   { id: 2, name: "SG Test Leather Ball", category: "balls", price: "₹899", rating: 4.5, img: "🔴" },
@@ -29,35 +29,30 @@ const PRODUCTS = [
 ];
 
 export default function App() {
+  // ... (STATE VARIABLES SAME AS BEFORE) ...
   const [activeTab, setActiveTab] = useState("home");
   const [showMenu, setShowMenu] = useState(false);
   const [liveMatches, setLiveMatches] = useState([]); 
   const [pastMatches, setPastMatches] = useState([]); 
   const [myMatches, setMyMatches] = useState([]);
   const [match, setMatch] = useState(null); 
-  
-  // Search & Insights State
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCategory, setSearchCategory] = useState("matches"); 
   const [insightQuery, setInsightQuery] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
   const [insightLoading, setInsightLoading] = useState(false);
-
-  // Store State
   const [storeCategory, setStoreCategory] = useState("all");
-
-  // Auth & OTP State
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authStep, setAuthStep] = useState(1); // 1: Input Contact, 2: OTP, 3: Username(New)
-  const [contactType, setContactType] = useState("email"); // email or mobile
+  const [authStep, setAuthStep] = useState(1); 
+  const [contactType, setContactType] = useState("email"); 
   const [contactValue, setContactValue] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [newUsername, setNewUsername] = useState("");
-  const [isMasterLogin, setIsMasterLogin] = useState(false); // Toggle for password login
+  const [isMasterLogin, setIsMasterLogin] = useState(false); 
   const [masterPassword, setMasterPassword] = useState("");
-  const [otpError, setOtpError] = useState(""); // To show error messages
+  const [otpError, setOtpError] = useState(""); 
 
   const [step, setStep] = useState(1);
   const [seriesName, setSeriesName] = useState("");
@@ -85,7 +80,6 @@ export default function App() {
   const [detailMatch, setDetailMatch] = useState(null);
   const [detailViewMode, setDetailViewMode] = useState("summary");
   
-  // Scoring & Commentary State
   const [showWicketType, setShowWicketType] = useState(false);
   const [showBowlerChange, setShowBowlerChange] = useState(false);
   const [showCommModal, setShowCommModal] = useState(false);
@@ -125,15 +119,17 @@ export default function App() {
       } catch(e) { console.error("Fetch failed"); }
   };
 
-  // --- NEW AUTH LOGIC (FIXED FOR MOBILE DEMO) ---
+  // --- NEW AUTH LOGIC (WITH FALLBACK MESSAGE) ---
   const handleSendOtp = async () => {
       if(!contactValue) return alert("Enter valid contact");
       try {
           const res = await axios.post(`${BACKEND_URL}/api/auth/send-otp`, { contact: contactValue });
           
           if(res.data.type === 'mobile') {
-              // SHOW THE DEMO CODE TO THE USER
               alert("📲 DEMO MODE: Use OTP 123456 to login!");
+          } else if(res.data.type === 'email_failed') {
+              // THIS IS THE NEW FALLBACK MESSAGE YOU REQUESTED
+              alert("⚠️ Unable to send OTP via email (Server Restriction).\n\n✅ You can use 123456 as OTP to login.");
           } else {
               alert("📧 Email Sent! Check your inbox.");
           }
@@ -169,7 +165,6 @@ export default function App() {
       localStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
       setShowAuthModal(false);
-      // Reset Auth State
       setAuthStep(1); setContactValue(""); setOtpValue(""); setNewUsername(""); setMasterPassword(""); setOtpError("");
   };
 

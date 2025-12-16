@@ -17,17 +17,14 @@ app.use(express.json());
 const JWT_SECRET = "cricmad_secure_hash_key_2025"; 
 const otpStore = new Map(); 
 
-// --- EMAIL CONFIGURATION (SSL MODE - REQUIRED FOR RENDER) ---
+// --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,       // CHANGED: 465 is required to fix the Timeout error
-  secure: true,    // CHANGED: Must be true for Port 465
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER, 
     pass: process.env.EMAIL_PASS, 
-  },
-  tls: {
-    rejectUnauthorized: false
   }
 });
 
@@ -110,41 +107,43 @@ const checkOwnership = (match, user) => {
 
 // --- AUTH ROUTES ---
 
-// 1. SEND OTP
+// 1. SEND OTP (WITH FALLBACK LOGIC)
 app.post("/api/auth/send-otp", async (req, res) => {
     const { contact } = req.body;
     if (!contact) return res.status(400).json({ error: "Contact required" });
 
     const isEmail = contact.includes("@");
-    let otp;
-
-    if (isEmail) {
-        // REAL EMAIL LOGIC
-        otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const mailOptions = {
-            from: '"CricMad App" <' + process.env.EMAIL_USER + '>',
-            to: contact,
-            subject: "Your CricMad Login OTP",
-            text: `Welcome to CricMad! Your OTP is: ${otp}. It expires in 5 minutes.`
-        };
-        try {
-            await transporter.sendMail(mailOptions);
-            console.log(`✅ Email sent to ${contact}`);
-        } catch (error) {
-            console.error("❌ Email Error:", error);
-            // Return error so frontend knows it failed
-            return res.status(500).json({ error: "Failed to send email." });
-        }
-    } else {
-        // MOBILE DEMO
-        otp = "123456"; 
-        console.log(`📱 Mobile Login for ${contact}. Demo OTP: ${otp}`);
+    
+    // CASE 1: MOBILE NUMBER (Direct Demo Mode)
+    if (!isEmail) {
+        otpStore.set(contact, { otp: "123456", expires: Date.now() + 300000 });
+        return res.json({ success: true, type: "mobile" });
     }
 
-    otpStore.set(contact, { otp, expires: Date.now() + 300000 });
+    // CASE 2: EMAIL (Try to send, Fallback if fails)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const mailOptions = {
+        from: '"CricMad App" <' + process.env.EMAIL_USER + '>',
+        to: contact,
+        subject: "Your CricMad Login OTP",
+        text: `Welcome to CricMad! Your OTP is: ${otp}. It expires in 5 minutes.`
+    };
 
-    if (isEmail) res.json({ success: true, message: "OTP Sent to Email!", type: "email" });
-    else res.json({ success: true, message: "Demo Mode", type: "mobile" });
+    try {
+        await transporter.sendMail(mailOptions);
+        // Success: Store the REAL OTP
+        otpStore.set(contact, { otp: otp, expires: Date.now() + 300000 });
+        console.log(`✅ Email sent to ${contact}`);
+        res.json({ success: true, type: "email_success" });
+    } catch (error) {
+        console.error("❌ Email Failed (Using Fallback):", error.message);
+        
+        // Failure: Store the FALLBACK OTP
+        otpStore.set(contact, { otp: "123456", expires: Date.now() + 300000 });
+        
+        // Tell frontend to show the fallback message
+        res.json({ success: true, type: "email_failed" });
+    }
 });
 
 // 2. VERIFY OTP
@@ -160,7 +159,6 @@ app.post("/api/auth/verify-otp", async (req, res) => {
     try {
         let user = await User.findOne({ email: contact });
         
-        // AUTO-PROMOTE
         if (user && contact === "rajdeepkumar789@gmail.com" && user.role !== "superadmin") {
             user.role = "superadmin";
             await user.save();
