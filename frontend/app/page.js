@@ -7,7 +7,7 @@ import {
   Settings, Lock, Unlock, ArrowLeft, Clock, MessageSquare, Undo2, Search, Phone, 
   Mail, MessageCircle, RefreshCw, ChevronRight, Trash2, Key, Eye, Edit3, Smartphone, 
   Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter, Target, Zap,
-  ShoppingCart, Tag, Star, LogIn
+  ShoppingCart, Tag, Star, LogIn, Repeat
 } from 'lucide-react';
 
 // REPLACE WITH YOUR BACKEND URL
@@ -57,6 +57,7 @@ export default function App() {
   const [newUsername, setNewUsername] = useState("");
   const [isMasterLogin, setIsMasterLogin] = useState(false); // Toggle for password login
   const [masterPassword, setMasterPassword] = useState("");
+  const [otpError, setOtpError] = useState(""); // To show error messages
 
   const [step, setStep] = useState(1);
   const [seriesName, setSeriesName] = useState("");
@@ -124,13 +125,21 @@ export default function App() {
       } catch(e) { console.error("Fetch failed"); }
   };
 
-  // --- NEW AUTH LOGIC ---
+  // --- NEW AUTH LOGIC (FIXED FOR MOBILE DEMO) ---
   const handleSendOtp = async () => {
       if(!contactValue) return alert("Enter valid contact");
       try {
-          await axios.post(`${BACKEND_URL}/api/auth/send-otp`, { contact: contactValue });
+          const res = await axios.post(`${BACKEND_URL}/api/auth/send-otp`, { contact: contactValue });
+          
+          if(res.data.type === 'mobile') {
+              // SHOW THE DEMO CODE TO THE USER
+              alert("📲 DEMO MODE: Use OTP 123456 to login!");
+          } else {
+              alert("📧 Email Sent! Check your inbox.");
+          }
+          
           setAuthStep(2);
-          alert("OTP Sent! Check your Backend Terminal/Console.");
+          setOtpError("");
       } catch(e) { alert("Failed to send OTP"); }
   };
 
@@ -142,7 +151,10 @@ export default function App() {
           } else {
               loginSuccess(res.data);
           }
-      } catch(e) { alert("Invalid OTP"); }
+      } catch(e) { 
+          setOtpError("Incorrect OTP. Please try again.");
+          setOtpValue("");
+      }
   };
 
   const handleMasterLogin = async () => {
@@ -158,7 +170,7 @@ export default function App() {
       setUser(data.user);
       setShowAuthModal(false);
       // Reset Auth State
-      setAuthStep(1); setContactValue(""); setOtpValue(""); setNewUsername(""); setMasterPassword("");
+      setAuthStep(1); setContactValue(""); setOtpValue(""); setNewUsername(""); setMasterPassword(""); setOtpError("");
   };
 
   const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); setUser(null); setActiveTab("home"); };
@@ -347,13 +359,13 @@ export default function App() {
          </div>
       </div>
 
-      {/* AUTH MODAL (OTP UPDATE) */}
+      {/* AUTH MODAL (OTP UPDATE + RESEND) */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative">
                 <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button>
-                <h3 className="text-gray-900 font-black text-2xl mb-1">{isMasterLogin ? "Master Login" : "Welcome Back"}</h3>
-                <p className="text-xs text-gray-500 mb-6">{isMasterLogin ? "Super Admin Access" : "Login with OTP"}</p>
+                <h3 className="text-gray-900 font-black text-2xl mb-1">{isMasterLogin ? "Master Login" : (authStep === 2 ? "Verify OTP" : "Welcome Back")}</h3>
+                <p className="text-xs text-gray-500 mb-6">{isMasterLogin ? "Super Admin Access" : (authStep === 2 ? `Sent to ${contactValue}` : "Login with OTP")}</p>
 
                 {isMasterLogin ? (
                     // --- MASTER PASSWORD LOGIN ---
@@ -378,9 +390,13 @@ export default function App() {
                         )}
                         {authStep === 2 && (
                             <>
-                                <p className="text-xs text-green-600 font-bold">OTP Sent to {contactValue}</p>
-                                <input className="w-full p-3 bg-gray-50 rounded-xl text-black border border-gray-200 text-center font-mono text-lg tracking-widest" placeholder="XXXXXX" value={otpValue} onChange={e => setOtpValue(e.target.value)} maxLength={6} />
+                                <p className="text-sm text-gray-900 font-bold mb-2">Enter OTP</p>
+                                <input className="w-full p-4 bg-gray-50 rounded-xl text-black border border-gray-300 text-center font-mono text-2xl tracking-widest focus:border-red-500 outline-none mb-2" placeholder="XXXXXX" value={otpValue} onChange={e => setOtpValue(e.target.value)} maxLength={6} />
+                                {otpError && <p className="text-xs text-red-500 font-bold mb-2">{otpError}</p>}
                                 <button onClick={handleVerifyOtp} className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl font-bold shadow-lg transition">Verify & Login</button>
+                                
+                                {/* RESEND OPTION */}
+                                <button onClick={handleSendOtp} className="text-xs text-gray-500 hover:text-black font-bold mt-4 flex items-center justify-center gap-1 w-full"><Repeat size={12}/> Didn't receive code? Resend</button>
                             </>
                         )}
                         {authStep === 3 && (
