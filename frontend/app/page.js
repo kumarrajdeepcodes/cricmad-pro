@@ -6,7 +6,7 @@ import {
   Home, Trophy, User, Menu, Plus, X, ShoppingBag, BarChart2, Flame, Bell, Activity, 
   Settings, Lock, Unlock, ArrowLeft, Clock, MessageSquare, Undo2, Search, Phone, 
   Mail, MessageCircle, RefreshCw, ChevronRight, Trash2, Key, Eye, Edit3, Smartphone, 
-  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter 
+  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send, Filter, Target, Zap 
 } from 'lucide-react';
 
 // REPLACE WITH YOUR BACKEND URL
@@ -21,11 +21,13 @@ export default function App() {
   const [myMatches, setMyMatches] = useState([]);
   const [match, setMatch] = useState(null); 
   
-  // Search State
+  // Search & Insights State
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchCategory, setSearchCategory] = useState("matches"); // matches, tournament, player
+  const [searchCategory, setSearchCategory] = useState("matches"); 
+  const [insightQuery, setInsightQuery] = useState(""); // Dedicated state for Insights tab
   const [playerStats, setPlayerStats] = useState(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
   // Auth
   const [user, setUser] = useState(null);
@@ -187,15 +189,26 @@ export default function App() {
   const changeBowler = async (name) => { await securePost(`${BACKEND_URL}/api/match/new-bowler`, { matchId: match._id, bowlerName: name }); setShowBowlerChange(false); };
   const changeBatter = async (name) => { await securePost(`${BACKEND_URL}/api/match/new-batter`, { matchId: match._id, batterName: name }); };
 
-  const fetchPlayerStats = async () => {
-      if(!searchQuery) return;
-      try { const res = await axios.get(`${BACKEND_URL}/api/stats/full/${searchQuery}`); setPlayerStats(res.data); } catch(e) { alert("Player not found"); }
+  // --- INSIGHTS FETCH LOGIC ---
+  const fetchPlayerStats = async (queryName) => {
+      if(!queryName) return;
+      setInsightLoading(true);
+      setPlayerStats(null);
+      try { 
+          const res = await axios.get(`${BACKEND_URL}/api/stats/full/${queryName}`); 
+          setPlayerStats(res.data); 
+      } catch(e) { 
+          // If in Insight Tab, show inline error? For now alert is fine or just empty state
+          if(activeTab === 'insights') alert("Player not found in database.");
+      } finally {
+          setInsightLoading(false);
+      }
   };
 
   const liveGroups = liveMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
   const pastGroups = pastMatches.reduce((groups, m) => { const series = m.seriesName || "Friendly"; if(!groups[series]) groups[series] = []; groups[series].push(m); return groups; }, {});
 
-  // FILTER LOGIC FOR SEARCH
+  // FILTER LOGIC FOR SEARCH OVERLAY
   const getFilteredMatches = () => {
       const allMatches = [...liveMatches, ...pastMatches];
       if (!searchQuery) return [];
@@ -297,7 +310,7 @@ export default function App() {
          </div>
       </div>
 
-      {/* SEARCH OVERLAY */}
+      {/* GLOBAL SEARCH OVERLAY */}
       {showSearch && (
         <div className="fixed inset-0 bg-white z-50 p-4 animate-in fade-in slide-in-from-top-10 duration-200">
             <div className="flex items-center gap-3 mb-6">
@@ -317,7 +330,7 @@ export default function App() {
             <div className="space-y-4">
                 {searchCategory === 'player' ? (
                     <div>
-                        <div className="flex gap-2 mb-4"><input className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200" placeholder="Enter full player name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><button onClick={fetchPlayerStats} className="bg-red-600 text-white px-4 rounded-xl font-bold">Go</button></div>
+                        <div className="flex gap-2 mb-4"><input className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200" placeholder="Enter full player name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><button onClick={() => fetchPlayerStats(searchQuery)} className="bg-red-600 text-white px-4 rounded-xl font-bold">Go</button></div>
                         {playerStats && (
                             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl">
                                 <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl">👤</div>
@@ -345,6 +358,78 @@ export default function App() {
       )}
 
       {showAuthModal && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative"><button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button><h3 className="text-gray-900 font-black text-2xl mb-1">{authMode === 'login' ? 'Welcome Back' : 'Join CricMad'}</h3><p className="text-xs text-gray-500 mb-6">Enter your details to continue</p>{authMode === 'signup' && <input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />}<input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} /><input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black mb-6 border border-gray-200 focus:border-red-500 outline-none" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} /><button onClick={handleAuth} className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mb-3 shadow-lg transition">{authMode === 'login' ? 'Login Securely' : 'Create Account'}</button><button onClick={setMasterCredentials} className="text-xs text-yellow-600 font-bold mb-4 flex items-center justify-center gap-1 w-full bg-yellow-50 py-2 rounded-lg border border-yellow-200"><Key size={12}/> Master Login (Demo)</button><button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-xs text-gray-500 hover:text-red-600 font-bold underline">{authMode === 'login' ? "New here? Create Account" : "Already have account? Login"}</button></div></div>}
+
+      {/* --- INSIGHTS TAB (NEW FEATURE) --- */}
+      {activeTab === 'insights' && (
+        <div className="pt-20 px-4 pb-20 bg-gray-50 min-h-screen">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+                <button onClick={() => setActiveTab('home')} className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowLeft size={20}/></button>
+                <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2"><BarChart2 className="text-purple-600"/> CricInsights</h1>
+            </div>
+
+            {/* Search Box */}
+            <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-200 flex gap-2 mb-8">
+                <input className="flex-1 p-3 outline-none text-gray-900 font-medium" placeholder="Search Player Name (e.g. Virat)" value={insightQuery} onChange={e => setInsightQuery(e.target.value)}/>
+                <button onClick={() => fetchPlayerStats(insightQuery)} className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-700 transition shadow-lg">{insightLoading ? <RefreshCw className="animate-spin"/> : <Search />}</button>
+            </div>
+
+            {/* Results Area */}
+            {playerStats ? (
+                <div className="animate-in slide-in-from-bottom-5 fade-in duration-500">
+                    {/* Profile Card */}
+                    <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 mb-6 text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-purple-500 to-indigo-600 opacity-20"></div>
+                        <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center text-4xl shadow-md relative z-10 border-4 border-purple-50">👤</div>
+                        <h2 className="text-2xl font-black text-gray-900 mb-1">{playerStats.name}</h2>
+                        <p className="text-sm text-green-600 font-bold bg-green-50 inline-block px-3 py-1 rounded-full mb-6">Available to Play</p>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-xs text-gray-400 font-bold uppercase mb-1">Matches</p>
+                                <p className="text-3xl font-black text-gray-900">{playerStats.matches}</p>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                <p className="text-xs text-gray-400 font-bold uppercase mb-1">High Score</p>
+                                <p className="text-3xl font-black text-yellow-600">{Math.max(...(playerStats.recentScores || [0]))}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                            <div className="flex items-center gap-2 mb-2 text-blue-600"><Target size={18}/><span className="font-bold text-sm">Total Runs</span></div>
+                            <p className="text-3xl font-black text-gray-900">{playerStats.runs}</p>
+                        </div>
+                        <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
+                            <div className="flex items-center gap-2 mb-2 text-red-600"><Zap size={18}/><span className="font-bold text-sm">Wickets</span></div>
+                            <p className="text-3xl font-black text-gray-900">{playerStats.wickets}</p>
+                        </div>
+                    </div>
+
+                    {/* Recent Form Graph */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2"><TrendingUp className="text-green-600"/> Recent Form</h3>
+                        <div className="flex items-end justify-between h-32 gap-2">
+                            {playerStats.recentScores && playerStats.recentScores.length > 0 ? playerStats.recentScores.map((score, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                                    <span className="text-xs font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">{score}</span>
+                                    <div className="w-full bg-purple-200 rounded-t-lg hover:bg-purple-500 transition-colors relative" style={{ height: `${Math.max(score, 10)}%` }}></div>
+                                    <span className="text-[10px] text-gray-400 font-bold">M{i+1}</span>
+                                </div>
+                            )) : <div className="text-gray-400 text-sm w-full text-center">No recent data available.</div>}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center mt-20 opacity-50">
+                    <BarChart2 size={60} className="mx-auto mb-4 text-gray-300"/>
+                    <p className="text-gray-400 font-bold">Search a player to see analytics</p>
+                </div>
+            )}
+        </div>
+      )}
 
       {/* --- CONTACT SUPPORT TAB (NEW & ATTRACTIVE) --- */}
       {activeTab === 'contact' && (
@@ -544,7 +629,7 @@ export default function App() {
       ) : activeTab === 'live' && <div className="pt-24 text-center text-gray-500">Select a match from Home.</div>}
 
       <BottomNav />
-      {showMenu && <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowMenu(false)}><div className="fixed top-0 right-0 h-full w-3/4 bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4"><h2 className="text-xl font-bold text-gray-900 flex gap-2"><Flame className="text-red-500"/> CricMad Pro</h2><button onClick={() => setShowMenu(false)}><X className="text-gray-400" /></button></div><div className="space-y-6 text-gray-600 font-medium"><div className="flex gap-4 items-center"><BarChart2 /> Insights</div><div className="flex gap-4 items-center"><ShoppingBag /> Store</div><div className="flex gap-4 items-center cursor-pointer hover:text-red-600 transition" onClick={() => { setShowMenu(false); setActiveTab('contact'); }}><Phone /> Contact Support</div></div></div></div>}
+      {showMenu && <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowMenu(false)}><div className="fixed top-0 right-0 h-full w-3/4 bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4"><h2 className="text-xl font-bold text-gray-900 flex gap-2"><Flame className="text-red-500"/> CricMad Pro</h2><button onClick={() => setShowMenu(false)}><X className="text-gray-400" /></button></div><div className="space-y-6 text-gray-600 font-medium"><div className="flex gap-4 items-center cursor-pointer hover:text-purple-600 transition" onClick={() => { setShowMenu(false); setActiveTab('insights'); }}><BarChart2 /> Insights</div><div className="flex gap-4 items-center"><ShoppingBag /> Store</div><div className="flex gap-4 items-center cursor-pointer hover:text-red-600 transition" onClick={() => { setShowMenu(false); setActiveTab('contact'); }}><Phone /> Contact Support</div></div></div></div>}
     </div>
   );
 }
