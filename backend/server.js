@@ -17,15 +17,17 @@ app.use(express.json());
 const JWT_SECRET = "cricmad_secure_hash_key_2025"; 
 const otpStore = new Map(); 
 
-// --- EMAIL CONFIGURATION (SSL MODE - FIXES RENDER TIMEOUT) ---
+// --- EMAIL CONFIGURATION (SSL MODE - REQUIRED FOR RENDER) ---
 const transporter = nodemailer.createTransport({
-  service: "gmail",
   host: "smtp.gmail.com",
-  port: 465,       // CHANGED: Using Port 465 (SSL) instead of 587
+  port: 465,       // CHANGED: 465 is required to fix the Timeout error
   secure: true,    // CHANGED: Must be true for Port 465
   auth: {
     user: process.env.EMAIL_USER, 
     pass: process.env.EMAIL_PASS, 
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
@@ -130,6 +132,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
             console.log(`✅ Email sent to ${contact}`);
         } catch (error) {
             console.error("❌ Email Error:", error);
+            // Return error so frontend knows it failed
             return res.status(500).json({ error: "Failed to send email." });
         }
     } else {
