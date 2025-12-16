@@ -6,7 +6,7 @@ import {
   Home, Trophy, User, Menu, Plus, X, ShoppingBag, BarChart2, Flame, Bell, Activity, 
   Settings, Lock, Unlock, ArrowLeft, Clock, MessageSquare, Undo2, Search, Phone, 
   Mail, MessageCircle, RefreshCw, ChevronRight, Trash2, Key, Eye, Edit3, Smartphone, 
-  Video, Users, Award 
+  Video, Users, Award, Handshake, LifeBuoy, TrendingUp, Send 
 } from 'lucide-react';
 
 // REPLACE WITH YOUR BACKEND URL
@@ -234,6 +234,57 @@ export default function App() {
 
       {showAuthModal && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div className="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative"><button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button><h3 className="text-gray-900 font-black text-2xl mb-1">{authMode === 'login' ? 'Welcome Back' : 'Join CricMad'}</h3><p className="text-xs text-gray-500 mb-6">Enter your details to continue</p>{authMode === 'signup' && <input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />}<input className="w-full p-3 bg-gray-50 rounded-xl text-black mb-3 border border-gray-200 focus:border-red-500 outline-none" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} /><input type="password" className="w-full p-3 bg-gray-50 rounded-xl text-black mb-6 border border-gray-200 focus:border-red-500 outline-none" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} /><button onClick={handleAuth} className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mb-3 shadow-lg transition">{authMode === 'login' ? 'Login Securely' : 'Create Account'}</button><button onClick={setMasterCredentials} className="text-xs text-yellow-600 font-bold mb-4 flex items-center justify-center gap-1 w-full bg-yellow-50 py-2 rounded-lg border border-yellow-200"><Key size={12}/> Master Login (Demo)</button><button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-xs text-gray-500 hover:text-red-600 font-bold underline">{authMode === 'login' ? "New here? Create Account" : "Already have account? Login"}</button></div></div>}
 
+      {/* --- CONTACT SUPPORT TAB (NEW & ATTRACTIVE) --- */}
+      {activeTab === 'contact' && (
+        <div className="pt-20 px-4 pb-20">
+            {/* Header Gradient */}
+            <div className="bg-gradient-to-r from-red-600 to-rose-800 rounded-3xl p-8 text-white mb-8 text-center shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 opacity-10"><Phone size={200} /></div>
+                <button onClick={() => setActiveTab('home')} className="absolute top-4 left-4 text-white/70 hover:text-white"><ArrowLeft /></button>
+                <h1 className="text-3xl font-black mb-2 relative z-10">Contact Us</h1>
+                <p className="text-red-100 relative z-10">Need help? Tell us more & we'll assist you.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Card 1: Association */}
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="bg-blue-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-blue-600"><Handshake size={28}/></div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">Association</h3>
+                    <p className="text-sm text-gray-500 mb-4">For partnering with us</p>
+                    <div className="space-y-2 mb-6 text-sm text-gray-600">
+                        <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> partners@cricmad.in</p>
+                        <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 9876543210</p>
+                    </div>
+                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold shadow-lg shadow-blue-200 transition active:scale-95">Book a Demo</button>
+                </div>
+
+                {/* Card 2: Support */}
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="bg-green-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-green-600"><LifeBuoy size={28}/></div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">Support</h3>
+                    <p className="text-sm text-gray-500 mb-4">For player queries</p>
+                    <div className="space-y-2 mb-6 text-sm text-gray-600">
+                        <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> support@cricmad.in</p>
+                        <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 8141665555</p>
+                    </div>
+                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg shadow-green-200 transition active:scale-95 flex items-center justify-center gap-2"><MessageCircle size={18}/> Whatsapp</button>
+                </div>
+
+                {/* Card 3: Sales */}
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="bg-purple-50 w-14 h-14 rounded-full flex items-center justify-center mb-4 text-purple-600"><TrendingUp size={28}/></div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">Sales</h3>
+                    <p className="text-sm text-gray-500 mb-4">For growing with us</p>
+                    <div className="space-y-2 mb-6 text-sm text-gray-600">
+                        <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> sales@cricmad.in</p>
+                        <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> +91 8141665533</p>
+                    </div>
+                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold shadow-lg shadow-purple-200 transition active:scale-95 flex items-center justify-center gap-2"><MessageCircle size={18}/> Whatsapp</button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* --- HOME TAB (REDESIGNED) --- */}
       {activeTab === 'home' && (
         <div className="pt-16 pb-20">
@@ -241,8 +292,8 @@ export default function App() {
            <div className="bg-gradient-to-br from-[#d32f2f] to-[#b71c1c] text-white pt-10 pb-16 px-6 rounded-b-[40px] shadow-2xl mb-10 relative overflow-hidden">
                <div className="absolute top-0 right-0 opacity-10"><Trophy size={300} /></div>
                <div className="relative z-10">
-                   <h1 className="text-4xl font-black mb-4 leading-tight">Where your talent <span className="text-yellow-400">heroes</span>; gets a world class platform.</h1>
-                   <p className="text-red-100 mb-8 font-medium text-sm">Download, Score, Grow and Play hard</p>
+                   <h1 className="text-4xl font-black mb-4 leading-tight">We make grassroots cricketers <span className="text-yellow-400">heroes</span>; one match at a time.</h1>
+                   <p className="text-red-100 mb-8 font-medium text-sm">Download the award winning app and start scoring for free.</p>
                    <div className="flex gap-3">
                        <button className="bg-black text-white px-5 py-2 rounded-lg flex items-center gap-2 text-xs font-bold shadow-lg border border-gray-800"><img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" className="h-6" alt="Play Store"/></button>
                        <button className="bg-black text-white px-5 py-2 rounded-lg flex items-center gap-2 text-xs font-bold shadow-lg border border-gray-800"><span className="text-xl"></span> App Store</button>
@@ -364,7 +415,7 @@ export default function App() {
       ) : activeTab === 'live' && <div className="pt-24 text-center text-gray-500">Select a match from Home.</div>}
 
       <BottomNav />
-      {showMenu && <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowMenu(false)}><div className="fixed top-0 right-0 h-full w-3/4 bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4"><h2 className="text-xl font-bold text-gray-900 flex gap-2"><Flame className="text-red-500"/> CricMad Pro</h2><button onClick={() => setShowMenu(false)}><X className="text-gray-400" /></button></div><div className="space-y-6 text-gray-600 font-medium"><div className="flex gap-4 items-center"><BarChart2 /> Insights</div><div className="flex gap-4 items-center"><ShoppingBag /> Store</div><div className="flex gap-4 items-center"><Phone /> Contact Support</div></div></div></div>}
+      {showMenu && <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setShowMenu(false)}><div className="fixed top-0 right-0 h-full w-3/4 bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4"><h2 className="text-xl font-bold text-gray-900 flex gap-2"><Flame className="text-red-500"/> CricMad Pro</h2><button onClick={() => setShowMenu(false)}><X className="text-gray-400" /></button></div><div className="space-y-6 text-gray-600 font-medium"><div className="flex gap-4 items-center"><BarChart2 /> Insights</div><div className="flex gap-4 items-center"><ShoppingBag /> Store</div><div className="flex gap-4 items-center cursor-pointer hover:text-red-600 transition" onClick={() => { setShowMenu(false); setActiveTab('contact'); }}><Phone /> Contact Support</div></div></div></div>}
     </div>
   );
 }
