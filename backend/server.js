@@ -6,7 +6,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend"); // CHANGED: Using Resend instead of Nodemailer
 
 const app = express();
 const server = http.createServer(app);
@@ -17,16 +17,8 @@ app.use(express.json());
 const JWT_SECRET = "cricmad_secure_hash_key_2025"; 
 const otpStore = new Map(); 
 
-// --- EMAIL CONFIGURATION ---
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER, 
-    pass: process.env.EMAIL_PASS, 
-  }
-});
+// --- RESEND CONFIGURATION ---
+const resend = new Resend(process.env.RESEND_API_KEY); // Make sure to add RESEND_API_KEY in Render/Vercel env vars
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected Successfully"))
@@ -107,7 +99,7 @@ const checkOwnership = (match, user) => {
 
 // --- AUTH ROUTES ---
 
-// 1. SEND OTP (WITH FALLBACK LOGIC)
+// 1. SEND OTP (UPDATED FOR RESEND)
 app.post("/api/auth/send-otp", async (req, res) => {
     const { contact } = req.body;
     if (!contact) return res.status(400).json({ error: "Contact required" });
@@ -120,28 +112,38 @@ app.post("/api/auth/send-otp", async (req, res) => {
         return res.json({ success: true, type: "mobile" });
     }
 
-    // CASE 2: EMAIL (Try to send, Fallback if fails)
+    // CASE 2: EMAIL (Using Resend API)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const mailOptions = {
-        from: '"CricMad App" <' + process.env.EMAIL_USER + '>',
-        to: contact,
-        subject: "Your CricMad Login OTP",
-        text: `Welcome to CricMad! Your OTP is: ${otp}. It expires in 5 minutes.`
-    };
 
     try {
-        await transporter.sendMail(mailOptions);
+        const data = await resend.emails.send({
+            from: 'CricMad <onboarding@resend.dev>', // Use this for testing. Once verified, change to your domain email
+            to: [contact],
+            subject: 'Your CricMad Login Code',
+            html: `
+              <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+                <h1>🏏 Welcome to CricMad!</h1>
+                <p>Your login verification code is:</p>
+                <h2 style="background: #f3f4f6; padding: 10px 20px; display: inline-block; letter-spacing: 5px; border-radius: 8px;">${otp}</h2>
+                <p>This code expires in 5 minutes.</p>
+              </div>
+            `
+        });
+
+        if (data.error) {
+            console.error("Resend API Error:", data.error);
+            throw new Error(data.error.message);
+        }
+
         // Success: Store the REAL OTP
         otpStore.set(contact, { otp: otp, expires: Date.now() + 300000 });
         console.log(`✅ Email sent to ${contact}`);
         res.json({ success: true, type: "email_success" });
+
     } catch (error) {
         console.error("❌ Email Failed (Using Fallback):", error.message);
-        
-        // Failure: Store the FALLBACK OTP
+        // Failure: Store the FALLBACK OTP so user isn't locked out during testing
         otpStore.set(contact, { otp: "123456", expires: Date.now() + 300000 });
-        
-        // Tell frontend to show the fallback message
         res.json({ success: true, type: "email_failed" });
     }
 });

@@ -61,8 +61,9 @@ export default function App() {
 
   const [step, setStep] = useState(1);
   
-  // NEW: State for existing series list
+  // NEW: State for existing series list & UI dropdown
   const [existingSeries, setExistingSeries] = useState([]);
+  const [showSeriesDropdown, setShowSeriesDropdown] = useState(false);
   
   const [seriesName, setSeriesName] = useState("");
   const [teamAName, setTeamAName] = useState("India");
@@ -118,7 +119,7 @@ export default function App() {
     });
   }, []);
 
-  // NEW: Automatically fetch series when entering setup tab
+  // Automatically fetch series when entering setup tab
   useEffect(() => {
     if (activeTab === 'setup' && user) {
         fetchSeriesNames();
@@ -131,9 +132,7 @@ export default function App() {
       setLiveMatches(liveRes.data);
       const pastRes = await axios.get(`${BACKEND_URL}/api/matches/completed`);
       setPastMatches(pastRes.data);
-    } catch (e) { 
-      // Silent catch
-    }
+    } catch (e) { }
   };
 
   const fetchMyMatches = async () => {
@@ -142,9 +141,7 @@ export default function App() {
           const token = localStorage.getItem("token");
           const res = await axios.get(`${BACKEND_URL}/api/matches/my`, { headers: { Authorization: `Bearer ${token}` } });
           setMyMatches(res.data);
-      } catch(e) { 
-        // Silent catch
-      }
+      } catch(e) { }
   };
 
   const fetchSeriesNames = async () => {
@@ -153,9 +150,7 @@ export default function App() {
           const token = localStorage.getItem("token");
           const res = await axios.get(`${BACKEND_URL}/api/series`, { headers: { Authorization: `Bearer ${token}` } });
           setExistingSeries(res.data);
-      } catch(e) { 
-        // Silent catch
-      }
+      } catch(e) { }
   };
 
   const handleSendOtp = async () => {
@@ -322,9 +317,7 @@ export default function App() {
       try { 
           const res = await axios.get(`${BACKEND_URL}/api/stats/full/${queryName}`); 
           setPlayerStats(res.data); 
-      } catch(e) { 
-          // Silent catch
-      } finally {
+      } catch(e) { } finally {
           setInsightLoading(false);
       }
   };
@@ -594,7 +587,7 @@ export default function App() {
                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-red-900/20">
                    {/* 1. The Background Image */}
                    <img 
-                       src="/cricmad-banner.png" 
+                       src="https://images.unsplash.com/photo-1531415074968-bc2366c012ce?q=80&w=2000&auto=format&fit=crop" 
                        alt="CricMad Background" 
                        className="absolute inset-0 w-full h-full object-cover"
                    />
@@ -699,34 +692,49 @@ export default function App() {
         </div>
       )}
 
-      {/* SETUP TAB (Dark Mode retained for contrast) */}
+      {/* SETUP TAB (Updated with Manual Dropdown) */}
       {activeTab === 'setup' && user && (
         <div className="pt-24 px-6 pb-20 bg-[#111827] min-h-screen text-white fixed inset-0 overflow-y-auto z-50">
            <button onClick={() => setActiveTab("home")} className="absolute top-6 left-6 text-gray-400"><X/></button>
            <div className="flex items-center gap-3 mb-8"><span className="bg-red-600 text-white w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold shadow-lg shadow-red-500/50">{step}</span><h2 className="text-2xl font-bold text-white">Match Setup</h2></div>
+           
+           {/* STEP 1: SERIES NAME WITH CUSTOM DROPDOWN */}
            {step === 1 && (
              <div className="space-y-4">
-               <div>
+               <div className="relative">
                  <label className="text-xs text-gray-400 font-bold uppercase block mb-2">Series Name</label>
                  <input 
-                   list="series-options" 
                    className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 focus:border-red-500 outline-none" 
                    placeholder="Select or Type New Series Name" 
                    value={seriesName} 
                    onChange={e => setSeriesName(e.target.value)} 
+                   onFocus={() => { fetchSeriesNames(); setShowSeriesDropdown(true); }}
+                   onBlur={() => setTimeout(() => setShowSeriesDropdown(false), 200)}
                  />
-                 <datalist id="series-options">
-                   {existingSeries.map((name, index) => (
-                     <option key={index} value={name} />
-                   ))}
-                 </datalist>
+                 {/* Custom Dropdown */}
+                 {showSeriesDropdown && existingSeries.length > 0 && (
+                    <div className="absolute z-10 w-full bg-[#1F2937] border border-gray-600 rounded-xl mt-1 max-h-40 overflow-y-auto shadow-xl">
+                        {existingSeries.map((s, i) => (
+                            <div 
+                                key={i} 
+                                className="p-3 hover:bg-gray-700 cursor-pointer text-white border-b border-gray-700 last:border-0"
+                                onClick={() => setSeriesName(s)}
+                            >
+                                {s}
+                            </div>
+                        ))}
+                    </div>
+                 )}
                </div>
+
                <input className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 focus:border-red-500 outline-none" placeholder="Team A Name" value={teamAName} onChange={e => setTeamAName(e.target.value)} />
                <input className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 focus:border-red-500 outline-none" placeholder="Team B Name" value={teamBName} onChange={e => setTeamBName(e.target.value)} />
                <input type="number" className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 focus:border-red-500 outline-none" placeholder="Total Overs" value={totalOvers} onChange={e => setTotalOvers(e.target.value)} />
+               
                <button className="w-full p-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold mt-4 shadow-lg shadow-red-900/20" onClick={nextStep}>Next Step</button>
              </div>
            )}
+
            {(step === 2 || step === 3) && <div><h3 className="mb-2 text-gray-400 font-bold uppercase text-xs">Players: {step === 2 ? teamAName : teamBName}</h3><div className="bg-[#1F2937] p-4 rounded-xl mb-4 border border-gray-700"><input className="w-full p-3 bg-[#111827] rounded-lg text-white mb-4 border border-gray-600" value={tempPlayerName} onChange={e => setTempPlayerName(e.target.value)} placeholder="Enter Name" /><div className="flex gap-2 mb-4">{["Batsman", "Bowler", "All Rounder"].map(r => (<button key={r} onClick={() => setPlayerRole(r)} className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-lg border transition ${playerRole === r ? 'bg-white text-black border-white' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>{r}</button>))}</div><div className="flex justify-between mb-4 px-1 text-xs text-gray-300 font-bold"><label className="flex items-center gap-2"><input type="checkbox" checked={isCaptain} onChange={e => setIsCaptain(e.target.checked)} className="accent-red-500"/> CAP</label><label className="flex items-center gap-2"><input type="checkbox" checked={isVC} onChange={e => setIsVC(e.target.checked)} className="accent-red-500"/> VC</label><label className="flex items-center gap-2"><input type="checkbox" checked={isWK} onChange={e => setIsWK(e.target.checked)} className="accent-red-500"/> WK</label></div><button onClick={() => addPlayer(step === 2 ? 'A' : 'B')} className="bg-red-600 w-full p-3 rounded-lg font-bold shadow-lg">Add Player</button></div><div className="h-56 overflow-y-auto bg-[#1F2937] p-2 rounded-xl mb-4 border border-gray-700">{(step === 2 ? teamASquad : teamBSquad).map((p,i) => (<div key={i} className="border-b border-gray-700 p-3 flex justify-between items-center"><span className="font-medium">{p.name}</span><span className="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-400 font-bold">{p.role.substring(0,3)} {p.isCaptain?'(C)':''}</span></div>))}</div><button className="w-full p-4 bg-white text-black rounded-xl font-bold shadow-lg" onClick={nextStep}>Confirm Squad</button></div>}
            {step === 4 && <div className="space-y-4"><h3 className="text-white font-bold">Toss Time</h3><div className="bg-[#1F2937] p-6 rounded-2xl mb-4 border border-gray-700"><p className="text-gray-400 text-sm mb-3 font-bold uppercase">Who won the toss?</p><div className="flex gap-3 mb-6"><button onClick={() => setTossWinner(teamAName)} className={`flex-1 p-4 rounded-xl border font-bold transition ${tossWinner === teamAName ? 'bg-white text-black border-white' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>{teamAName}</button><button onClick={() => setTossWinner(teamBName)} className={`flex-1 p-4 rounded-xl border font-bold transition ${tossWinner === teamBName ? 'bg-white text-black border-white' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>{teamBName}</button></div><p className="text-gray-400 text-sm mb-3 font-bold uppercase">Decision?</p><div className="flex gap-3"><button onClick={() => setTossDecision("Bat")} className={`flex-1 p-4 rounded-xl border font-bold transition ${tossDecision === "Bat" ? 'bg-green-600 text-white border-green-500' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>Bat 🏏</button><button onClick={() => setTossDecision("Bowl")} className={`flex-1 p-4 rounded-xl border font-bold transition ${tossDecision === "Bowl" ? 'bg-blue-600 text-white border-blue-500' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>Bowl 🎾</button></div></div><button className="w-full p-4 bg-red-600 rounded-xl font-bold mt-4 shadow-lg" onClick={() => setStep(5)}>Next Step</button></div>}
            {step === 5 && <div className="space-y-4"><h3 className="text-white font-bold text-xl">Select Openers</h3>{(() => { const team1Batting = (tossWinner === teamAName && tossDecision === "Bat") || (tossWinner === teamBName && tossDecision === "Bowl"); const battingSquad = team1Batting ? teamASquad : teamBSquad; const bowlingSquad = team1Batting ? teamBSquad : teamASquad; return (<><label className="text-xs text-gray-400 font-bold uppercase">Striker</label><select className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 outline-none" onChange={e => setSelectedStriker(e.target.value)}><option>Select Striker</option>{battingSquad.map(p => <option key={p.name}>{p.name}</option>)}</select><label className="text-xs text-gray-400 font-bold uppercase">Non-Striker</label><select className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 outline-none" onChange={e => setSelectedNonStriker(e.target.value)}><option>Select Non-Striker</option>{battingSquad.map(p => <option key={p.name}>{p.name}</option>)}</select><label className="text-xs text-gray-400 font-bold uppercase">Opening Bowler</label><select className="w-full p-4 bg-[#1F2937] rounded-xl text-white border border-gray-700 outline-none" onChange={e => setSelectedBowler(e.target.value)}><option>Select Bowler</option>{bowlingSquad.map(p => <option key={p.name}>{p.name}</option>)}</select></>); })()}<button className="w-full p-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold mt-6 shadow-lg shadow-green-900/20" onClick={startMatch}>Start Match 🚀</button></div>}
